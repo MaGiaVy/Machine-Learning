@@ -1,0 +1,69 @@
+# ==============================================================================
+# VoC-Insight E-Commerce ABSA System - .gitignore
+# Chống đẩy file >100MB lên GitHub, bảo vệ file trọng số nặng và rác hệ thống
+# Giữ lại code, notebooks, data/processed/, data/samples_messy/, models/*.pkl
+# ==============================================================================
+
+# --- 1. File Trọng số Deep Learning & Nén dung lượng lớn (>100MB - GitHub cấm đẩy) ---
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.h5
+phobert_ecommerce_outputs*.zip
+src_and_data.zip
+*.tar.gz
+*.rar
+*.7z
+# Giữ lại duy nhất bộ dữ liệu nén gốc UIT-ViSFD (~939 KB)
+!data/raw/UIT-ViSFD.zip
+
+# --- 2. Cơ sở dữ liệu nội bộ (SQLite) & Biến môi trường ---
+*.db
+*.sqlite
+*.sqlite3
+voc_insight.db*
+.env
+.env.local
+.env.*.local
+
+# --- 3. Python, Virtual Environments & Pytest / Jupyter ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# --- 4. Frontend (React / Next.js / Node.js) ---
+node_modules/
+.next/
+out/
+dist/
+build/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- 5. IDE, OS & Agent Scratch ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+.superpowers/
+.tmp_run/
+tmp/
+temp/
+uploads/
