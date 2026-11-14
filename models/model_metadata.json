@@ -1,10 +1,10 @@
 {
-  "dataset": "UIT-ViSFD E-Commerce (7786 train / 350 eyeball_dev / 762 blackbox_dev / 2224 test)",
+  "dataset": "UIT-ViSFD E-Commerce (7776 train / 300 calib_dev / 560 blackbox_dev / 250 eyeball_dev / 2224 test)",
   "baseline_tfidf_linearsvc": {
-    "sentiment_macro_f1": 0.7073,
-    "sentiment_accuracy": 0.8318,
-    "aspect_macro_f1": 0.5829,
-    "aspect_accuracy": 0.621
+    "sentiment_macro_f1": 0.7345,
+    "sentiment_accuracy": 0.7824,
+    "aspect_macro_f1": 0.51,
+    "aspect_accuracy": 0.5436
   },
   "phobert_multitask": {
     "backbone": "vinai/phobert-base-v2",
