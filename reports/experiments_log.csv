@@ -1,0 +1,33 @@
+﻿exp_id,run_name,timestamp,description,params,dev_f1,test_f1,notes
+E01,3class,2026-11-17 23:21,Label scheme: 3-class vs 4-class (Mixed),"{""ngram_range"": [1, 2], ""min_df"": 2, ""max_df"": 0.95, ""max_features"": 15000, ""C"": 1.0, ""class_weight"": ""balanced""}",0.7478,,"TF-IDF+LR, eval dev, neutral_f1=0.5466"
+E01,4class,2026-11-17 23:21,Label scheme: 3-class vs 4-class (Mixed),"{""ngram_range"": [1, 2], ""min_df"": 2, ""max_df"": 0.95, ""max_features"": 15000, ""C"": 1.0, ""class_weight"": ""balanced""}",0.6826,,"TF-IDF+LR, eval dev, neutral_f1=0.3667"
+E02,sent_nb03_lr_default,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7478,,"train_f1=0.9111, gap=0.1634"
+E02,sent_lr_C_0.25,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 0.25, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7395,,"train_f1=0.8272, gap=0.0877"
+E02,sent_lr_C_0.5,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 0.5, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7415,,"train_f1=0.8676, gap=0.1261"
+E02,sent_lr_C_2.0,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 2.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7506,,"train_f1=0.9533, gap=0.2027"
+E02,sent_lr_C_5.0,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 5.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.74,,"train_f1=0.9881, gap=0.2480"
+E02,sent_lr_C_10.0,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 10.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7273,,"train_f1=0.9993, gap=0.2719"
+E02,sent_lr_unigram,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 1], ""min_df"": 2, ""max_features"": 15000}",0.7394,,"train_f1=0.8428, gap=0.1034"
+E02,sent_lr_trigram,2026-11-18 07:30,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 3], ""min_df"": 2, ""max_features"": 25000}",0.7448,,"train_f1=0.9255, gap=0.1807"
+E02,sent_lr_mindf_3,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 2], ""min_df"": 3, ""max_features"": 15000}",0.7457,,"train_f1=0.9115, gap=0.1658"
+E02,sent_lr_mindf_5,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 2], ""min_df"": 5, ""max_features"": 15000}",0.7465,,"train_f1=0.9005, gap=0.1540"
+E02,sent_lr_maxfeat_30k,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LogisticRegression"", ""C"": 1.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 30000}",0.7427,,"train_f1=0.9290, gap=0.1863"
+E02,sent_svc_C_0.05,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LinearSVC"", ""C"": 0.05, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7239,,"train_f1=0.8224, gap=0.0985"
+E02,sent_svc_C_0.1,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LinearSVC"", ""C"": 0.1, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7336,,"train_f1=0.8750, gap=0.1414"
+E02,sent_nb03_svc_C_0.2,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LinearSVC"", ""C"": 0.2, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7349,,"train_f1=0.9267, gap=0.1918"
+E02,sent_svc_C_0.5,2026-11-18 07:31,TF-IDF & C ablation (Sentiment),"{""model"": ""LinearSVC"", ""C"": 0.5, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.7297,,"train_f1=0.9815, gap=0.2519"
+E02,asp_ovr_lr_C_0.5,2026-11-18 07:31,Wider C grid (Multi-Label Aspect),"{""C"": 0.5, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.8734,,"train_ml_f1=0.9163, gap=0.0428"
+E02,asp_ovr_lr_C_1.0,2026-11-18 07:31,Wider C grid (Multi-Label Aspect),"{""C"": 1.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.8859,,"train_ml_f1=0.9375, gap=0.0516"
+E02,asp_ovr_lr_C_2.0,2026-11-18 07:31,Wider C grid (Multi-Label Aspect),"{""C"": 2.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.8911,,"train_ml_f1=0.9586, gap=0.0675"
+E02,asp_ovr_lr_C_5.0,2026-11-18 07:31,Wider C grid (Multi-Label Aspect),"{""C"": 5.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.8987,,"train_ml_f1=0.9825, gap=0.0838"
+E02,asp_ovr_lr_C_10.0,2026-11-18 07:31,Wider C grid (Multi-Label Aspect),"{""C"": 10.0, ""ngram"": [1, 2], ""min_df"": 2, ""max_features"": 15000}",0.8992,,"train_ml_f1=0.9928, gap=0.0936"
+E03,1_raw_only,2026-11-18 07:33,Text cleaning & pyvi ablation,"{""column"": ""sentence""}",0.7418,,dev_asp_ml_f1=0.8926
+E03,2_clean_no_pyvi,2026-11-18 07:33,Text cleaning & pyvi ablation,"{""column"": ""sentence_clean""}",0.7368,,dev_asp_ml_f1=0.8927
+E03,3_raw_plus_pyvi,2026-11-18 07:33,Text cleaning & pyvi ablation,"{""column"": ""raw_seg""}",0.7395,,dev_asp_ml_f1=0.8912
+E03,4_clean_and_pyvi,2026-11-18 07:33,Text cleaning & pyvi ablation,"{""column"": ""sentence_seg""}",0.7478,,dev_asp_ml_f1=0.8911
+E04,sentence_seg,2026-11-18 09:20,PhoBERT segmenter comparison (Colab GPU),"{""col"": ""sentence_seg"", ""epochs"": 3, ""lr"": 2e-05, ""max_len"": 128}",0.8496,,"sent=0.8002, asp=0.8991, unk_rate=0.0383%, synced from E04 Colab"
+E04,sentence_rdr,2026-11-18 09:20,PhoBERT segmenter comparison (Colab GPU),"{""col"": ""sentence_rdr"", ""epochs"": 3, ""lr"": 2e-05, ""max_len"": 128}",0.8507,,"sent=0.7956, asp=0.9058, unk_rate=0.0145%, synced from E04 Colab"
+E05,maxlen_128_lr_2e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 128, ""lr"": 2e-05, ""epochs"": 4}",0.8482,,"{'best_ep': 4, 'sent_f1': 0.8048, 'asp_f1': 0.8916, 'mean_f1': 0.8482}, sec=633.7, synced from E05 Colab"
+E05,maxlen_256_lr_2e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 256, ""lr"": 2e-05, ""epochs"": 4}",0.8444,,"{'best_ep': 3, 'sent_f1': 0.7989, 'asp_f1': 0.8899, 'mean_f1': 0.8444}, sec=680.5, synced from E05 Colab"
+E05,maxlen_128_lr_3e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 128, ""lr"": 3e-05, ""epochs"": 4}",0.8597,,"{'best_ep': 4, 'sent_f1': 0.8102, 'asp_f1': 0.9091, 'mean_f1': 0.8597}, sec=647.2, synced from E05 Colab"
+E05,maxlen_128_lr_1e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 128, ""lr"": 1e-05, ""epochs"": 4}",0.8068,,"{'best_ep': 4, 'sent_f1': 0.7985, 'asp_f1': 0.8151, 'mean_f1': 0.8068}, sec=647.1, synced from E05 Colab"
