@@ -39,12 +39,59 @@
       "rstrip": false,
       "single_word": false,
       "special": true
+    },
+    "64001": {
+      "content": "[PHONE]",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "64002": {
+      "content": "[ORDER_ID]",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "64003": {
+      "content": "[EMAIL]",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "64004": {
+      "content": "[URL]",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
+    },
+    "64005": {
+      "content": "[PERSON]",
+      "lstrip": false,
+      "normalized": false,
+      "rstrip": false,
+      "single_word": false,
+      "special": true
     }
   },
   "backend": "custom",
   "bos_token": "<s>",
   "cls_token": "<s>",
   "eos_token": "</s>",
+  "extra_special_tokens": [
+    "[PHONE]",
+    "[ORDER_ID]",
+    "[EMAIL]",
+    "[URL]",
+    "[PERSON]"
+  ],
   "is_local": false,
   "local_files_only": false,
   "mask_token": "<mask>",

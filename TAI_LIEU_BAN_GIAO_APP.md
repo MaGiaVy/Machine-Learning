@@ -23,21 +23,21 @@ flowchart LR
 
 ### 1.1. Chiến lược Hybrid AI (Phân vai thông minh)
 1. **Phân tích 1 đánh giá tức thì (`POST /api/v1/predict`):**
-   - Dùng **PhoBERT Multi-Task (`phobert_multitask.pt`)** để đạt độ chính xác tối đa (`Sentiment Macro F1 = 0.7722`, `Aspect Macro F1 = 0.7630`). Thời gian suy luận trên CPU ~50–120ms/câu.
+   - Dùng **PhoBERT Multi-Task (`phobert_multitask.pt`)** để đạt độ chính xác tối đa (`Sentiment Macro F1 = 0.7925`, `Multi-Label Aspect Macro F1 = 0.9082`, có hiệu chuẩn nhiệt độ `calibration.json`). Thời gian suy luận trên CPU ~50–120ms/câu.
    - Song song dùng **`lr_sentiment.pkl` + `tfidf_vectorizer.pkl` + `shap.LinearExplainer`** để trích xuất trọng số từ khóa giải thích thời gian thực (<20ms).
 2. **Phân tích hàng loạt File Excel/CSV (`POST /api/v1/upload/analyze`):**
    - **Nếu tổng số dòng $\le 200$** (và `model_mode` là `auto` hoặc `phobert`): Chạy **PhoBERT Multi-Task** theo batch (`batch_size=32`, mất ~3–10 giây trên CPU) để cho kết quả chính xác nhất.
-   - **Nếu tổng số dòng $> 200$** (hoặc `model_mode == "baseline"`): Tự động chuyển sang **TF-IDF + LinearSVC** (`svc_sentiment.pkl`, `svc_aspect.pkl`) để xử lý hàng nghìn dòng trong < 1 giây mà không làm treo server.
+   - **Nếu tổng số dòng $> 200$** (hoặc `model_mode == "baseline"`): Tự động chuyển sang **Baseline TF-IDF** (`baseline_sentiment.pkl` LR + `baseline_aspect_multilabel.pkl` OVR LinearSVC + 5 ngưỡng OOF trong `baseline_aspect_thresholds.json`), kèm cờ **`Khieu_Nai_Ngam_4_5_Sao` (`SILENT_COMPLAINT`)** khi `n_star >= 4` & `P(neg) >= 0.50`, để xử lý hàng nghìn dòng trong < 1 giây mà không làm treo server.
 
 ### 1.2. Chỉ số Benchmark Chính thức (Tập Test Độc lập — 2,224 đánh giá)
 Trích xuất nguyên bản từ [model_metadata.json](file:///d:/E-commerce/models/model_metadata.json):
 
-| Bài toán (Task) | Chỉ số (Metric) | Baseline (`TF-IDF + LinearSVC`) | **PhoBERT Multi-Task (Chốt)** | Mức cải thiện ($\Delta$) |
+| Bài toán (Task) | Chỉ số (Metric) | Baseline (`TF-IDF LR + OVR SVC`) | **PhoBERT Multi-Task (Chốt)** | Mức cải thiện ($\Delta$) |
 | :--- | :--- | :---: | :---: | :---: |
-| **Cảm xúc (3 lớp)** | **Macro F1** | `0.7073` | **`0.7722` (77.22%)** | **+6.49%** |
-| | **Accuracy** | `0.8318` | **`0.8674` (86.74%)** | **+3.56%** |
-| **Khía cạnh (5 nhóm)** | **Macro F1** | `0.5829` | **`0.7630` (76.30%)** | **+18.01%** |
-| | **Accuracy** | `0.6210` | **`0.7806` (78.06%)** | **+15.96%** |
+| **Cảm xúc (3 lớp)** | **Macro F1** | `0.7345` | **`0.7925` (79.25%)** | **+5.80%** |
+| | **Accuracy** | `0.7824` | **`0.8377` (83.77%)** | **+5.53%** |
+| **Đa khía cạnh (Multi-label 5 nhóm)** | **Macro F1** | `0.9058` | **`0.9082` (90.82%)** | **+0.24%** |
+| **Khía cạnh chính (Primary)** | **Hit-Any-True-Group** | `0.9586` | **`0.9496`** *(Overlap ML: `0.9838`)* | — |
 
 ---
 
@@ -46,13 +46,13 @@ Trích xuất nguyên bản từ [model_metadata.json](file:///d:/E-commerce/mod
 ### 2.1. Các file cần nạp vào Backend
 * **Thư mục `models/`:**
   * `phobert_multitask/phobert_multitask.pt` (~540 MB — **Lưu ý Git:** file này nằm trong `.gitignore` vì vượt 100MB; khi clone repo từ GitHub về, tải file `.pt` từ Google Drive bỏ vào đúng thư mục `models/phobert_multitask/`).
-  * `phobert_multitask/config.json`, `vocab.txt`, `bpe.codes`, `tokenizer_config.json`, `added_tokens.json` (đã có sẵn, giúp nạp PhoBERT **hoàn toàn offline** không cần tải lại từ HuggingFace!).
-  * `tfidf_vectorizer.pkl` (~488 KB), `svc_sentiment.pkl` (~289 KB), `svc_aspect.pkl` (~481 KB), `lr_sentiment.pkl` (~289 KB), `lr_aspect.pkl` (~481 KB).
-  * `model_metadata.json`, `phobert_multitask/training_history.json`.
+  * `phobert_multitask/config.json`, `vocab.txt`, `bpe.codes`, `tokenizer_config.json`, `added_tokens.json`, `calibration.json` (đã có sẵn, giúp nạp PhoBERT & ngưỡng hiệu chuẩn **hoàn toàn offline** không cần tải lại từ HuggingFace!).
+  * `tfidf_vectorizer.pkl`, `baseline_sentiment.pkl`, `baseline_aspect_multilabel.pkl`, `baseline_aspect_thresholds.json`, `svc_sentiment.pkl`, `svc_aspect.pkl`, `lr_sentiment.pkl`, `lr_aspect.pkl`.
+  * `model_metadata.json`, `phobert_multitask/training_history.json` (`6` epochs).
 * **Thư mục `data/processed/`:**
-  * `train_clean.csv` (`7,786` dòng — dùng làm **background matrix** cho `shap.LinearExplainer` khi khởi động server, hoặc tính sẵn background mean vector một lần rồi lưu cache).
-  * `test_pred_phobert.csv` (`2,224` dòng — dùng để **seed dữ liệu ban đầu** vào SQLite `voc_insight.db`).
-  * `actionable_insights.csv` (`6` cụm giải pháp chuẩn MECE trên `797` câu tiêu cực của tập Test).
+  * `train_clean.csv` (`7,776` dòng sau lọc trùng — dùng làm **background matrix** cho `shap.LinearExplainer` khi khởi động server, hoặc sample 100 mẫu tiêu biểu để tăng tốc).
+  * `test_pred_phobert.csv` (`2,224` dòng, `26` cột đa nhãn — dùng để **seed dữ liệu ban đầu** vào SQLite `voc_insight.db`).
+  * `actionable_insights.csv` (`6` cụm giải pháp chuẩn MECE trên `779` câu tiêu cực của tập Test).
 * **Thư mục `data/samples_messy/`:** Đủ 10 file xuất thô sàn TMĐT bẩn để gắn nút test nhanh trên UI Tab 2.
 
 ### 2.2. Thư viện Python bắt buộc cho Backend (`requirements.txt` bổ sung)
@@ -318,7 +318,7 @@ MECE_GROUPS = [
 ]
 ```
 
-*(Trên tập Test 2,224 đánh giá hiện tại: `797` câu tiêu cực phân bổ vào 6 nhóm đúng bằng `431 + 159 + 100 + 57 + 34 + 16 = 797`).*
+*(Trên tập Test 2,224 đánh giá hiện tại: `779` câu tiêu cực phân bổ vào 6 nhóm đúng bằng `334 + 214 + 113 + 89 + 16 + 13 = 779`).*
 
 ---
 
@@ -422,10 +422,10 @@ Backend cần bật CORS cho Frontend (`http://localhost:3000`).
 ### 5.4. `GET /api/v1/dashboard/overview` — Dữ liệu tổng hợp Real-time từ SQLite (Tab 1 & Tab 4)
 * **Query Params:** `?source=all|seed_test|buyer_portal|excel_upload` (hoặc `batch_id`).
 * **Response JSON:**
-  * `system_metrics`: `total_reviews` (`2224` mặc định ban đầu), `positive_count` (`1151`), `negative_count` (`797`), `neutral_count` (`276`), `needs_review_count` (`699`).
+  * `system_metrics`: `total_reviews` (`2224` mặc định ban đầu), `positive_count` (`1032`), `negative_count` (`779`), `neutral_count` (`413`), `needs_review_count` (`562`).
   * `aspect_breakdown`: Thống kê Khen / Trung lập / Chê cho từng nhóm trong 5 khía cạnh.
   * `actionable_insights`: Tính động bằng `MECE_GROUPS` trên toàn bộ câu tiêu cực hiện hành trong DB (100% bao phủ).
-  * `model_metadata`: Đọc từ `models/model_metadata.json` + `training_history.json` (hiển thị biểu đồ Loss & Blackbox Dev F1 qua 4 epoch trên Tab 4).
+  * `model_metadata`: Đọc từ `models/model_metadata.json` + `training_history.json` (hiển thị biểu đồ Loss & Blackbox Dev F1 qua `6` epochs trên Tab 4).
 
 ### 5.5. `GET /api/v1/reviews` & `PATCH /api/v1/reviews/{id}` — Tra cứu, SHAP & Duyệt cờ (Tab 3)
 * **`GET /api/v1/reviews`:** Hỗ trợ phân trang (`page`, `limit`), lọc (`sentiment`, `aspect`, `needs_review`, `review_status`, `source`, `q`).
@@ -442,10 +442,10 @@ Cấu trúc 2 vai trò chuyển đổi ở Top Navigation Bar:
    - 3 nút **Demo 1-Click**: (1) Khen mượt/pin trâu, (2) Chê nóng máy/tụt pin + chứa SĐT/Mã đơn để demo tự động che `[PHONE]`/`[ORDER_ID]`, (3) Bẫy mâu thuẫn 1 sao nhưng viết khen nức nở.
    - Hiển thị ngay thẻ kết quả PhoBERT + các từ khóa tô màu Đỏ/Xanh từ SHAP + cảnh báo mâu thuẫn sao (nếu có) + badge *"Đã đồng bộ sang Dashboard Nhà bán hàng"*.
 2. **`📊 Bảng Điều Khiển Nhà Bán Hàng (Seller Analytics Dashboard)` — 4 Tab:**
-   - **Tab 1 (Tổng quan & Actionable Insights):** 4 Metric Cards (`2,224` đánh giá, `51.8%` Tích cực, `35.8%` Tiêu cực, `699` Cần duyệt); Biểu đồ Donut Cảm xúc + Stacked Bar 5 Khía cạnh; Bảng **6 Giải pháp Hành động MECE** (hiển thị đủ `797/797` câu tiêu cực, không sót câu nào).
-   - **Tab 2 (Upload File Báo Cáo Sàn TMĐT Bẩn):** Drag-and-drop `.xlsx/.xls/.csv` + Thanh **10 nút Test File Mẫu** (`data/samples_messy/`); Card hiển thị kết quả tự dò Sheet, Header Row, 2 cột nhận xét, Lọc lặp tiêu đề/Merged cells; Chọn `Auto (PhoBERT <=200 dòng)` / `Nhanh (TF-IDF)`; Xem trước 5 dòng đã che PII + Nút tải xuống file Excel kết quả.
+   - **Tab 1 (Tổng quan & Actionable Insights):** 4 Metric Cards (`2,224` đánh giá, `46.4%` Tích cực, `35.0%` Tiêu cực, `562` Cần duyệt); Biểu đồ Donut Cảm xúc + Stacked Bar 5 Khía cạnh; Bảng **6 Giải pháp Hành động MECE** (hiển thị đủ `779/779` câu tiêu cực, không sót câu nào).
+   - **Tab 2 (Upload File Báo Cáo Sàn TMĐT Bẩn):** Drag-and-drop `.xlsx/.xls/.csv` + Thanh **10 nút Test File Mẫu** (`data/samples_messy/`); Card hiển thị kết quả tự dò Sheet, Header Row, 2 cột nhận xét, Lọc lặp tiêu đề/Merged cells; Chọn `Auto (PhoBERT <=200 dòng)` / `Nhanh (TF-IDF)`; Xem trước 5 dòng đã che PII + Nút tải xuống file Excel kết quả (kèm cột `Khieu_Nai_Ngam_4_5_Sao`).
    - **Tab 3 (Tra cứu Chi tiết, SHAP XAI & Active Review):** Bộ lọc đa tiêu chí + Bảng danh sách đánh giá (hiển thị nhãn mới nhất từ SQLite) + Ngăn kéo **SHAP Token Highlighter** (tô màu Đỏ/Xanh từng từ <20ms) + Nút **Sửa nhãn / Đã xử lý cờ `needs_review`**.
-   - **Tab 4 (Benchmark AI & Huấn luyện):** Bảng đối chiếu **PhoBERT (`0.7722` / `0.7630`) vs. Baseline TF-IDF (`0.7073` / `0.5829`)**, biểu đồ quá trình huấn luyện 4 epoch từ `training_history.json` (Loss, Train F1, Eyeball Dev F1, Blackbox Dev F1), và 5 biểu đồ EDA trong `reports/figures/`.
+   - **Tab 4 (Benchmark AI & Huấn luyện):** Bảng đối chiếu **PhoBERT (`0.7925` / ML-Asp `0.9082`) vs. Baseline TF-IDF (`0.7345` / ML-Asp `0.9058`)**, biểu đồ quá trình huấn luyện `6` epochs từ `training_history.json` (Loss, Train F1, Blackbox Dev F1), và 5 biểu đồ EDA/SHAP trong `reports/figures/`.
 
 ---
 

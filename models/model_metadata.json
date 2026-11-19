@@ -1,16 +1,29 @@
 {
-  "dataset": "UIT-ViSFD E-Commerce (7776 train / 300 calib_dev / 560 blackbox_dev / 250 eyeball_dev / 2224 test)",
-  "baseline_tfidf_linearsvc": {
-    "sentiment_macro_f1": 0.7345,
-    "sentiment_accuracy": 0.7824,
-    "aspect_macro_f1": 0.51,
-    "aspect_accuracy": 0.5436
+  "dataset": "UIT-ViSFD E-Commerce (7776 train / 250 eyeball / 300 calib / 560 blackbox / 2224 test)",
+  "calibration": {
+    "temp_sent": 1.248338,
+    "temp_asp": 0.459018,
+    "aspect_threshold": 0.4,
+    "low_conf_threshold": 0.75,
+    "calib_aspect_macro_f1": 0.9099,
+    "calib_review_precision": 0.6962,
+    "calib_review_fpr": 0.1752
   },
   "phobert_multitask": {
     "backbone": "vinai/phobert-base-v2",
-    "sentiment_macro_f1": 0.7722,
-    "sentiment_accuracy": 0.8674,
-    "aspect_macro_f1": 0.763,
-    "aspect_accuracy": 0.7806
+    "sentiment_macro_f1": 0.7925,
+    "sentiment_accuracy": 0.8377,
+    "aspect_multilabel_macro_f1": 0.9082,
+    "aspect_macro_f1": 0.5007,
+    "aspect_accuracy": 0.5252,
+    "hit_any_true_group": 0.9496
+  },
+  "baseline_tfidf": {
+    "sentiment_macro_f1": 0.7345,
+    "sentiment_accuracy": 0.7824,
+    "aspect_multilabel_macro_f1": 0.9058,
+    "aspect_macro_f1": 0.5111,
+    "aspect_accuracy": 0.5445,
+    "hit_any_true_group": 0.9586
   }
 }

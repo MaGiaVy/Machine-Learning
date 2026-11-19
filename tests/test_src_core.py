@@ -167,3 +167,14 @@ def test_real_uit_visfd_train_integrity():
     for t in pii_rows:
         seg = segment_words(t)
         assert not re.search(r'\[\s+(?:URL|EMAIL|ORDER_ID|PHONE|PERSON)|(?:URL|EMAIL|ORDER_ID|PHONE|PERSON)\s+\]', seg)
+
+
+def test_clean_text_skip_backward_compatible():
+    sample = "TGDĐ đt đẹppp quáaaa cam sau m k dùng đc sđt 0901234567 ❤️"
+    assert clean_text(sample) == clean_text(sample, skip=frozenset())
+    assert "yêu_thích" not in clean_text(sample, skip=frozenset({'emoji'}))
+    assert "0901234567" in clean_text(sample, skip=frozenset({'pii'}))
+    assert "đẹppp" in clean_text(sample, skip=frozenset({'elongation'}))
+    assert "camera" not in clean_text(sample, skip=frozenset({'cam'}))
+    assert "mình" not in clean_text(sample, skip=frozenset({'single_teencode'}))
+    assert "Thế Giới Di Động" not in clean_text(sample, skip=frozenset({'multi_teencode'}))

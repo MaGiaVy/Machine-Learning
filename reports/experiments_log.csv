@@ -31,3 +31,44 @@ E05,maxlen_128_lr_2e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_l
 E05,maxlen_256_lr_2e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 256, ""lr"": 2e-05, ""epochs"": 4}",0.8444,,"{'best_ep': 3, 'sent_f1': 0.7989, 'asp_f1': 0.8899, 'mean_f1': 0.8444}, sec=680.5, synced from E05 Colab"
 E05,maxlen_128_lr_3e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 128, ""lr"": 3e-05, ""epochs"": 4}",0.8597,,"{'best_ep': 4, 'sent_f1': 0.8102, 'asp_f1': 0.9091, 'mean_f1': 0.8597}, sec=647.2, synced from E05 Colab"
 E05,maxlen_128_lr_1e-05,2026-11-18 11:49,PhoBERT MAX_LEN & LR ablation,"{""max_len"": 128, ""lr"": 1e-05, ""epochs"": 4}",0.8068,,"{'best_ep': 4, 'sent_f1': 0.7985, 'asp_f1': 0.8151, 'mean_f1': 0.8068}, sec=647.1, synced from E05 Colab"
+E07,full_clean,2026-11-18 23:04,Leave-one-rule-out text_cleaner,"{""variant"": ""full_clean""}",0.7478,,dev_asp_f1=0.8911
+E07,skip_emoji,2026-11-18 23:05,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_emoji""}",0.7466,,dev_asp_f1=0.8910
+E07,skip_pii,2026-11-18 23:05,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_pii""}",0.7485,,dev_asp_f1=0.8908
+E07,skip_elongation,2026-11-18 23:06,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_elongation""}",0.7444,,dev_asp_f1=0.8903
+E07,skip_single_teencode,2026-11-18 23:06,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_single_teencode""}",0.7457,,dev_asp_f1=0.8910
+E07,skip_multi_teencode,2026-11-18 23:06,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_multi_teencode""}",0.7375,,dev_asp_f1=0.8922
+E07,skip_cam,2026-11-18 23:07,Leave-one-rule-out text_cleaner,"{""variant"": ""skip_cam""}",0.7448,,dev_asp_f1=0.8898
+E07,discourse_baseline,2026-11-18 23:07,Baseline pyvi for discourse slice,"{""variant"": ""discourse_baseline""}",0.7478,,"dev_asp_f1=0.8911, but_slice=0.6730, neg_slice=0.7237"
+E07,discourse_neg_tag,2026-11-18 23:07,Negation tagging NOT_word,"{""variant"": ""discourse_neg_tag""}",0.7422,,"dev_asp_f1=0.8880, but_slice=0.6412, neg_slice=0.7184"
+E07,discourse_but_prefix,2026-11-18 23:07,Contrastive clause BUT_prefix,"{""variant"": ""discourse_but_prefix""}",0.7219,,"dev_asp_f1=0.8856, but_slice=0.6106, neg_slice=0.6941"
+E07,discourse_but_double,2026-11-18 23:07,Contrastive clause repeat 2x,"{""variant"": ""discourse_but_double""}",0.7435,,"dev_asp_f1=0.8889, but_slice=0.6469, neg_slice=0.7063"
+E07,discourse_neg_and_but,2026-11-18 23:07,Negation tagging + BUT_prefix,"{""variant"": ""discourse_neg_and_but""}",0.7317,,"dev_asp_f1=0.8814, but_slice=0.6195, neg_slice=0.7012"
+E08,tie_neutral,2026-11-18 23:08,3-class tie-break labeling rules,"{""rule"": ""tie_neutral""}",0.7478,,"fair_non_tie_f1=0.6568, neu_f1=0.5466, neg_f1=0.8387"
+E08,tie_negative,2026-11-18 23:08,3-class tie-break labeling rules,"{""rule"": ""tie_negative""}",0.6934,,"fair_non_tie_f1=0.6602, neu_f1=0.3611, neg_f1=0.8649"
+E08,tie_specific_aspect,2026-11-18 23:08,3-class tie-break labeling rules,"{""rule"": ""tie_specific_aspect""}",0.6806,,"fair_non_tie_f1=0.6782, neu_f1=0.3196, neg_f1=0.8528"
+E08,drop_ties_train,2026-11-18 23:08,3-class tie-break labeling rules,"{""rule"": ""drop_ties_train""}",0.6531,,"fair_non_tie_f1=0.7166, neu_f1=0.2643, neg_f1=0.8157"
+E09,sent_weight_none,2026-11-18 23:08,Class imbalance strategies (Sentiment),"{""strategy"": ""weight_none""}",0.715,,"acc=0.7982, neu_F1=0.4264, neu_P=0.6068, neu_R=0.3287"
+E09,sent_weight_balanced,2026-11-18 23:08,Class imbalance strategies (Sentiment),"{""strategy"": ""weight_balanced""}",0.7478,,"acc=0.7856, neu_F1=0.5466, neu_P=0.5039, neu_R=0.5972"
+E09,sent_weight_smooth,2026-11-18 23:08,Class imbalance strategies (Sentiment),"{""strategy"": ""weight_smooth""}",0.74,,"acc=0.7973, neu_F1=0.5013, neu_P=0.5464, neu_R=0.4630"
+E09,sent_oversample_neu,2026-11-18 23:08,Class imbalance strategies (Sentiment),"{""strategy"": ""oversample_neu""}",0.7521,,"acc=0.7919, neu_F1=0.5494, neu_P=0.5120, neu_R=0.5926"
+E09,asp_threshold_0.5,2026-11-18 23:09,Multi-label aspect fixed threshold 0.5,"{""th"": 0.5}",0.8911,,
+E09,asp_threshold_per_class,2026-11-18 23:09,Multi-label aspect OOF per-class thresholds,"{""ths"": [0.4, 0.46, 0.42, 0.46, 0.3]}",0.9047,,
+E10,baseline_no_aug_balanced,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""baseline_no_aug_balanced"", ""mult"": 0.0, ""class_weight"": ""balanced"", ""n_train"": 7776}",0.7478,,neu_f1=0.5466
+E10,baseline_no_aug_none,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""baseline_no_aug_none"", ""mult"": 0.0, ""class_weight"": null, ""n_train"": 7776}",0.715,,neu_f1=0.4264
+E10,swap_x0.5_bal,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""swap_x0.5_bal"", ""mult"": 0.5, ""class_weight"": ""balanced"", ""n_train"": 8538}",0.7515,,neu_f1=0.5482
+E10,swap_x0.5_none,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""swap_x0.5_none"", ""mult"": 0.5, ""class_weight"": null, ""n_train"": 8538}",0.7481,,neu_f1=0.5237
+E10,swap_x1.0_bal,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""swap_x1.0_bal"", ""mult"": 1.0, ""class_weight"": ""balanced"", ""n_train"": 9300}",0.7469,,neu_f1=0.5447
+E10,swap_x1.0_none,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""swap_x1.0_none"", ""mult"": 1.0, ""class_weight"": null, ""n_train"": 9300}",0.7535,,neu_f1=0.5495
+E10,del10_x0.5_bal,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""del10_x0.5_bal"", ""mult"": 0.5, ""class_weight"": ""balanced"", ""n_train"": 8538}",0.7488,,neu_f1=0.5447
+E10,del10_x0.5_none,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""del10_x0.5_none"", ""mult"": 0.5, ""class_weight"": null, ""n_train"": 8538}",0.7489,,neu_f1=0.5248
+E10,del10_x1.0_bal,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""del10_x1.0_bal"", ""mult"": 1.0, ""class_weight"": ""balanced"", ""n_train"": 9300}",0.7488,,neu_f1=0.5478
+E10,del10_x1.0_none,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""del10_x1.0_none"", ""mult"": 1.0, ""class_weight"": null, ""n_train"": 9300}",0.7527,,neu_f1=0.5467
+E10,rev_teen_x0.5_bal,2026-11-18 23:09,Data augmentation on Neutral train only,"{""method"": ""rev_teen_x0.5_bal"", ""mult"": 0.5, ""class_weight"": ""balanced"", ""n_train"": 8538}",0.7421,,neu_f1=0.5275
+E10,rev_teen_x0.5_none,2026-11-18 23:10,Data augmentation on Neutral train only,"{""method"": ""rev_teen_x0.5_none"", ""mult"": 0.5, ""class_weight"": null, ""n_train"": 8538}",0.728,,neu_f1=0.4737
+E10,rev_teen_x1.0_bal,2026-11-18 23:10,Data augmentation on Neutral train only,"{""method"": ""rev_teen_x1.0_bal"", ""mult"": 1.0, ""class_weight"": ""balanced"", ""n_train"": 9300}",0.7342,,neu_f1=0.5071
+E10,rev_teen_x1.0_none,2026-11-18 23:10,Data augmentation on Neutral train only,"{""method"": ""rev_teen_x1.0_none"", ""mult"": 1.0, ""class_weight"": null, ""n_train"": 9300}",0.742,,neu_f1=0.5201
+E06,a_current_train,2026-11-19 22:32,Baseline train dedup,"{""n_train"": 7776}",0.7478,,"dev_clean_slice=0.7461, dev_neardup_slice=1.0000 (n=5)"
+E06,b_drop_neardup_090,2026-11-19 22:32,Drop train near-dup >= 0.90 vs dev only (no test leakage),"{""n_train"": 7744}",0.7449,,"dev_clean_slice=0.7446, dev_neardup_slice=0.8222 (n=5)"
+E06,c_consistent_dedup,2026-11-19 22:32,Drop near-dup (dev-only) + internal conflicting groups,"{""n_train"": 7744}",0.7449,,"dev_clean_slice=0.7446, dev_neardup_slice=0.8222 (n=5)"
+E06,silent_complaint_argmax_neg,2026-11-19 22:32,Detect 4-5* silent complaints (text-only),"{""rule"": ""argmax_neg""}",0.5217,,"P=0.4918, R=0.5556, caught=30/54"
+E06,silent_complaint_P(neg)>=0.5,2026-11-19 22:32,Detect 4-5* silent complaints (text-only),"{""rule"": ""P(neg)>=0.5""}",0.625,,"P=0.7143, R=0.5556, caught=30/54"

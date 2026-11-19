@@ -241,7 +241,7 @@ def _dedup_word(m: re.Match) -> str:
     return _TRIPLE_RUN_RE.sub(r'\1', word)
 
 
-def clean_text(text: str, lowercase: bool = False) -> str:
+def clean_text(text: str, lowercase: bool = False, skip: frozenset = frozenset()) -> str:
     """Làm sạch bình luận tiếng Việt giữ chữ Hoa/Thường mặc định cho PhoBERT."""
     if text is None or (isinstance(text, float) and text != text):
         return ''
@@ -256,53 +256,61 @@ def clean_text(text: str, lowercase: bool = False) -> str:
     t = t.replace('“', '"').replace('”', '"').replace('‘', "'").replace('’', "'").replace('–', '-').replace('—', '-')
 
     # 2. Chuyển emoji cảm xúc sang từ tiếng Việt gạch dưới và xóa icon lạ tránh <unk>
-    t = _EMOJI_KEYS_RE.sub(r'\1', t)
-    t = _EMOJI_SINGLE_RE.sub(lambda m: f' {_EMOJI_MAP[m.group(0)]} ', t)
+    if 'emoji' not in skip:
+        t = _EMOJI_KEYS_RE.sub(r'\1', t)
+        t = _EMOJI_SINGLE_RE.sub(lambda m: f' {_EMOJI_MAP[m.group(0)]} ', t)
     t = _UNSUPPORTED_CHAR_RE.sub(' ', t)
 
     # 3. Ẩn danh PII trước khi rút gọn ký tự hay tách từ
-    t = _FULL_URL_RE.sub(' _URL_ ', t)
-    t = _EMAIL_RE.sub(' _EMAIL_ ', t)
-    t = _BARE_DOMAIN_RE.sub(' _URL_ ', t)
-    t = _ORDER_PREFIX_RE.sub(' _ORDER_ID_ ', t)
-    t = _ORDER_NUM_RE.sub(' _ORDER_ID_ ', t)
-    t = _PHONE_RE.sub(' _PHONE_ ', t)
-    t = _mask_person(t)
+    if 'pii' not in skip:
+        t = _FULL_URL_RE.sub(' _URL_ ', t)
+        t = _EMAIL_RE.sub(' _EMAIL_ ', t)
+        t = _BARE_DOMAIN_RE.sub(' _URL_ ', t)
+        t = _ORDER_PREFIX_RE.sub(' _ORDER_ID_ ', t)
+        t = _ORDER_NUM_RE.sub(' _ORDER_ID_ ', t)
+        t = _PHONE_RE.sub(' _PHONE_ ', t)
+        t = _mask_person(t)
 
     # 4. Bảo vệ tiếng cười và rút gọn ký tự kéo dài an toàn (giữ nguyên ưu/free/full/app/call)
-    t = _LAUGH_K_RE.sub(' cười ', t)
-    t = _LAUGH_HA_RE.sub(' cười ', t)
-    for pat, repl in _VOWEL_FAMILY_PATTERNS:
-        t = pat.sub(repl, t)
-    t = _WORD_RE.sub(_dedup_word, t)
+    if 'elongation' not in skip:
+        t = _LAUGH_K_RE.sub(' cười ', t)
+        t = _LAUGH_HA_RE.sub(' cười ', t)
+        for pat, repl in _VOWEL_FAMILY_PATTERNS:
+            t = pat.sub(repl, t)
+        t = _WORD_RE.sub(_dedup_word, t)
 
     # 5. Chuẩn hóa teencode theo ngữ cảnh và ranh giới từ
     t = re.sub(r'\s+', ' ', t).strip()
-    t = _MN_RE.sub(lambda m: _match_case(m.group(0), 'mọi người'), t)
-    t = _COLON_V_RE.sub(' haha ', t)
-    t = _CAM_RE.sub(lambda m: _match_case(m.group(0), 'camera'), t)
+    if 'multi_teencode' not in skip:
+        t = _MN_RE.sub(lambda m: _match_case(m.group(0), 'mọi người'), t)
+        t = _COLON_V_RE.sub(' haha ', t)
+    if 'cam' not in skip:
+        t = _CAM_RE.sub(lambda m: _match_case(m.group(0), 'camera'), t)
 
-    t_before_single = t
+    if 'single_teencode' not in skip:
+        t_before_single = t
 
-    def _repl_single(m: re.Match) -> str:
-        ch = m.group(1)
-        low = ch.lower()
-        #Tránh chuyển nhầm đơn vị đo sau chữ số như '4 M' hay '5 V'
-        if low in ('m', 'v', 'r', 'z') and re.search(r'\d\s+$', t_before_single[:m.start()]):
-            return ch
-        return _match_case(ch, _SINGLE_TEENCODE[low])
+        def _repl_single(m: re.Match) -> str:
+            ch = m.group(1)
+            low = ch.lower()
+            #Tránh chuyển nhầm đơn vị đo sau chữ số như '4 M' hay '5 V'
+            if low in ('m', 'v', 'r', 'z') and re.search(r'\d\s+$', t_before_single[:m.start()]):
+                return ch
+            return _match_case(ch, _SINGLE_TEENCODE[low])
 
-    t = _SINGLE_RE.sub(_repl_single, t)
-    t_before_multi = t
+        t = _SINGLE_RE.sub(_repl_single, t)
 
-    def _repl_multi(m: re.Match) -> str:
-        tok = m.group(1)
-        low = tok.lower()
-        if low == 'kg' and re.search(r'\d\s+$', t_before_multi[:m.start()]):
-            return tok
-        return _match_case(tok, _TEENCODE_DICT[low])
+    if 'multi_teencode' not in skip:
+        t_before_multi = t
 
-    t = _MULTI_TEENCODE_RE.sub(_repl_multi, t)
+        def _repl_multi(m: re.Match) -> str:
+            tok = m.group(1)
+            low = tok.lower()
+            if low == 'kg' and re.search(r'\d\s+$', t_before_multi[:m.start()]):
+                return tok
+            return _match_case(tok, _TEENCODE_DICT[low])
+
+        t = _MULTI_TEENCODE_RE.sub(_repl_multi, t)
 
     # 6. Khôi phục placeholder PII chuẩn và xử lý lowercase nếu được yêu cầu
     for tmp_tok, real_tok in _PII_RESTORE:

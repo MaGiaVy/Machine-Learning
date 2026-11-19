@@ -1,6 +1,7 @@
 import os
 import unittest
 import json
+import numpy as np
 import pandas as pd
 from sklearn.metrics import f1_score, accuracy_score
 
@@ -43,13 +44,20 @@ class TestTask3PhoBertMultiTask(unittest.TestCase):
         self.assertIn("raise FileNotFoundError", all_code, "Phải ném FileNotFoundError nếu không có checkpoint hoặc CSV")
 
     def test_test_pred_phobert_csv(self):
-        """Kiểm tra test_pred_phobert.csv hợp lệ, đủ 2,224 dòng và không còn cờ is_no_content bắt nhầm câu tốt/tuyệt vời."""
+        """Kiểm tra test_pred_phobert.csv v3 hợp lệ, đủ 2,224 dòng, đủ 5 cột pred_asp_0..4 và không bắt nhầm is_no_content."""
         self.assertTrue(os.path.exists(self.pred_path), "File test_pred_phobert.csv không tồn tại")
         df = pd.read_csv(self.pred_path)
         self.assertEqual(len(df), 2224, "Số dòng tập test phải là 2,224")
-        for col in ['pred_sentiment', 'pred_aspect', 'sentiment_conf', 'aspect_conf', 'needs_review', 'is_no_content']:
+
+        asp_cols = [f'asp_{i}' for i in range(5)]
+        pred_asp_cols = [f'pred_asp_{i}' for i in range(5)]
+        req_cols = ['pred_sentiment', 'pred_aspect', 'sentiment_conf', 'aspect_conf', 'needs_review', 'is_no_content'] + asp_cols + pred_asp_cols
+        for col in req_cols:
             self.assertIn(col, df.columns, f"Thiếu cột {col} trong test_pred_phobert.csv")
             self.assertFalse(df[col].isna().any(), f"Có giá trị NaN trong cột {col}")
+
+        for col in pred_asp_cols:
+            self.assertTrue(set(df[col].unique()).issubset({0, 1}), f"Cột {col} phải là nhị phân 0/1")
 
         tot_rows = df[df['sentence'].str.contains('tốt|tuyệt vời', case=False, na=False)]
         self.assertGreater(len(tot_rows), 0, "Phải có câu chứa từ 'tốt' hoặc 'tuyệt vời' trong tập test")
@@ -61,32 +69,41 @@ class TestTask3PhoBertMultiTask(unittest.TestCase):
         self.assertEqual(short_positives['needs_review'].sum(), 0, "Các câu khen 5 sao ngắn không được bị gắn cờ needs_review")
 
         sent_f1 = f1_score(df['sentiment'], df['pred_sentiment'], average='macro')
-        asp_f1 = f1_score(df['aspect_group'], df['pred_aspect'], average='macro')
-        self.assertGreater(sent_f1, 0.70, f"PhoBERT Sentiment Macro F1 ({sent_f1:.4f}) phải > 0.70")
-        self.assertGreater(asp_f1, 0.70, f"PhoBERT Aspect Macro F1 ({asp_f1:.4f}) phải > 0.70")
+        ml_asp_f1 = f1_score(df[asp_cols].values, df[pred_asp_cols].values, average='macro', zero_division=0)
+        prim_asp_f1 = f1_score(df['aspect_group'], df['pred_aspect'], average='macro', zero_division=0)
+        hit_any = float(df[asp_cols].values[np.arange(len(df)), df['pred_aspect'].values.astype(int)].mean())
+
+        self.assertGreater(sent_f1, 0.75, f"PhoBERT Sentiment Macro F1 ({sent_f1:.4f}) phải > 0.75")
+        self.assertGreater(ml_asp_f1, 0.85, f"PhoBERT Multi-label Aspect Macro F1 ({ml_asp_f1:.4f}) phải > 0.85")
+        self.assertGreater(prim_asp_f1, 0.45, f"PhoBERT Primary Aspect Macro F1 ({prim_asp_f1:.4f}) phải > 0.45")
+        self.assertGreater(hit_any, 0.90, f"PhoBERT Hit-Any-True-Group ({hit_any:.4f}) phải > 0.90")
 
     def test_model_metadata_json(self):
-        """Kiểm tra model_metadata.json đúng cú pháp, khớp 100% với test_pred_baseline.csv và test_pred_phobert.csv."""
+        """Kiểm tra model_metadata.json đúng cú pháp v3, khớp 100% với test_pred_baseline.csv và test_pred_phobert.csv."""
         self.assertTrue(os.path.exists(self.metadata_path), "File model_metadata.json không tồn tại")
         with open(self.metadata_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
 
-        self.assertIn("baseline_tfidf_linearsvc", data)
+        self.assertIn("baseline_tfidf", data)
         self.assertIn("phobert_multitask", data)
 
         df_base = pd.read_csv(os.path.join(self.proc_dir, 'test_pred_baseline.csv'))
         df_pho = pd.read_csv(self.pred_path)
+        asp_cols = [f'asp_{i}' for i in range(5)]
+        pred_asp_cols = [f'pred_asp_{i}' for i in range(5)]
 
-        base = data["baseline_tfidf_linearsvc"]
+        base = data["baseline_tfidf"]
         self.assertEqual(base["sentiment_macro_f1"], round(f1_score(df_base['sentiment'], df_base['pred_sentiment'], average='macro'), 4))
         self.assertEqual(base["sentiment_accuracy"], round(accuracy_score(df_base['sentiment'], df_base['pred_sentiment']), 4))
-        self.assertEqual(base["aspect_macro_f1"], round(f1_score(df_base['aspect_group'], df_base['pred_aspect'], average='macro'), 4))
+        self.assertEqual(base["aspect_multilabel_macro_f1"], round(f1_score(df_base[asp_cols].values, df_base[pred_asp_cols].values, average='macro', zero_division=0), 4))
+        self.assertEqual(base["aspect_macro_f1"], round(f1_score(df_base['aspect_group'], df_base['pred_aspect'], average='macro', zero_division=0), 4))
         self.assertEqual(base["aspect_accuracy"], round(accuracy_score(df_base['aspect_group'], df_base['pred_aspect']), 4))
 
         phobert = data["phobert_multitask"]
         self.assertEqual(phobert["sentiment_macro_f1"], round(f1_score(df_pho['sentiment'], df_pho['pred_sentiment'], average='macro'), 4))
         self.assertEqual(phobert["sentiment_accuracy"], round(accuracy_score(df_pho['sentiment'], df_pho['pred_sentiment']), 4))
-        self.assertEqual(phobert["aspect_macro_f1"], round(f1_score(df_pho['aspect_group'], df_pho['pred_aspect'], average='macro'), 4))
+        self.assertEqual(phobert["aspect_multilabel_macro_f1"], round(f1_score(df_pho[asp_cols].values, df_pho[pred_asp_cols].values, average='macro', zero_division=0), 4))
+        self.assertEqual(phobert["aspect_macro_f1"], round(f1_score(df_pho['aspect_group'], df_pho['pred_aspect'], average='macro', zero_division=0), 4))
         self.assertEqual(phobert["aspect_accuracy"], round(accuracy_score(df_pho['aspect_group'], df_pho['pred_aspect']), 4))
 
 

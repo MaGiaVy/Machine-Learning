@@ -1,0 +1,9 @@
+{
+  "temp_sent": 1.248338,
+  "temp_asp": 0.459018,
+  "aspect_threshold": 0.4,
+  "low_conf_threshold": 0.75,
+  "calib_aspect_macro_f1": 0.9099,
+  "calib_review_precision": 0.6962,
+  "calib_review_fpr": 0.1752
+}
