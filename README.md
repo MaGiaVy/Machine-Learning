@@ -19,7 +19,7 @@ Dự án **True Aspect-Based Sentiment Analysis (`5 × 4`)** trên tập dữ li
 
 ## Tải weights
 
-File `models/phobert_absa_v4/phobert_absa_best.pt` (~540 MB) và gói `phobert_absa_outputs_v4.zip` bị loại khỏi Git theo `.gitignore`. Tải `phobert_absa_outputs_v4.zip` tại `WEIGHTS_URL` (hoặc chạy [notebooks/04_phobert_multitask.ipynb](notebooks/04_phobert_multitask.ipynb) trên Google Colab T4 GPU ~8–10 phút với `src_and_data_v4.zip`), giải nén vào `models/phobert_absa_v4/` và `data/processed/`. Nếu không có weights, NB06 tự động fallback sang `Baseline_TFIDF_LinearSVC` và ghi rõ ở cột `Model_Su_Dung`.
+File `models/phobert_absa_v4/phobert_absa_best.pt` (~540 MB) và gói `phobert_absa_outputs_v4.zip` bị loại khỏi Git theo `.gitignore`. Tải `phobert_absa_outputs_v4.zip` tại [Google Drive](https://drive.google.com/drive/folders/17Fgfqa2IFnCnh2ZJzNE0HpobJKnF7PVs) (hoặc chạy [notebooks/04_phobert_multitask.ipynb](notebooks/04_phobert_multitask.ipynb) trên Google Colab T4 GPU ~8–10 phút với `src_and_data_v4.zip`), giải nén vào `models/phobert_absa_v4/` và `data/processed/`. Nếu không có weights, NB06 tự động fallback sang `Baseline_TFIDF_LinearSVC` và ghi rõ ở cột `Model_Su_Dung`.
 
 ---
 
