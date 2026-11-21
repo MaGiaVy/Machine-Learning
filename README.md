@@ -6,15 +6,20 @@ Dự án **True Aspect-Based Sentiment Analysis (`5 × 4`)** trên tập dữ li
 
 | Chỉ số (Test `N=2,224`) | TF-IDF Baseline (`LinearSVC`, `C=0.5`) | PhoBERT ABSA v4.0 (`MAX_LEN=128`) | Chênh lệch |
 |---|---:|---:|---:|
-| **ABSA Macro F1** | `0.7556` | **`0.8417`** | **+0.0861** *(95% Paired Bootstrap CI: `[+0.0769, +0.0964]`)* |
-| **ABSA Micro F1** | `0.7576` | **`0.8415`** | **+0.0839** |
-| **Mean 4-class Macro F1** | `0.6895` | **`0.7929`** | **+0.1034** |
-| **Polarity-given-Detected Macro F1** | `0.7854` | **`0.8370`** | **+0.0516** |
-| **Tập xung đột (`has_conflict`, `n=286`)** | `0.6530` | **`0.7533`** | **+0.1003** |
-| **Tập xung đột có Negative (`n=141`)** | `0.6316` | **`0.7337`** | **+0.1021** |
+| **ABSA Macro F1** | `0.7556` | **`0.8410`** | **+0.0857** *(95% Paired Bootstrap CI: `[+0.0757, +0.0954]`)* |
+| **ABSA Micro F1** | `0.7576` | **`0.8405`** | **+0.0829** |
+| **Mean 4-class Macro F1** | `0.6895` | **`0.7924`** | **+0.1029** |
+| **Polarity-given-Detected Macro F1** | `0.7854` | **`0.8358`** | **+0.0504** |
+| **Tập xung đột (`has_conflict`, `n=286`)** | `0.6530` | **`0.7500`** | **+0.0970** |
+| **Tập xung đột có Negative (`n=141`)** | `0.6316` | **`0.7284`** | **+0.0968** |
+| **Exact-match cấp review (cả 5 khía cạnh đúng)** | — | **`0.5567`** | *(44.33% câu sai ≥1 khía cạnh)* |
 
-- **Mức độ khiếu nại ngầm trên Test (`Muc_Do_Khieu_Nai_Ngam`):** `Không: 942`, `Nhẹ: 250`, `Cao: 205` (`14.67%` trong nhóm 4–5★), `N/A: 827` (1–3★).
-- **Lưu ý trọng số (Weights):** File `models/phobert_absa_v4/phobert_absa_best.pt` (~540 MB) và gói `phobert_absa_outputs_v4.zip` bị loại khỏi Git theo `.gitignore`. Để tái tạo weights, chạy [notebooks/04_phobert_multitask.ipynb](notebooks/04_phobert_multitask.ipynb) trên Google Colab T4 GPU (~8–10 phút) với gói `src_and_data_v4.zip`, sau đó giải nén `phobert_absa_outputs_v4.zip` vào `models/phobert_absa_v4/` và `data/processed/`.
+- **Mức độ khiếu nại ngầm trên Test (`Muc_Do_Khieu_Nai_Ngam`):** `Không: 947`, `Nhẹ: 242`, `Cao: 208` (`14.89%` trong nhóm 4–5★), `N/A: 827` (1–3★).
+- **Cờ kiểm duyệt `needs_review` (ngân sách 15% trên `df_calib`, `review_conf_threshold = 0.5094`):** gắn cờ **`15.7%`** tập test (`349/2,224`), precision **`74.5%`**, error recall **`26.4%`**.
+
+## Tải weights
+
+File `models/phobert_absa_v4/phobert_absa_best.pt` (~540 MB) và gói `phobert_absa_outputs_v4.zip` bị loại khỏi Git theo `.gitignore`. Tải `phobert_absa_outputs_v4.zip` tại `WEIGHTS_URL` (hoặc chạy [notebooks/04_phobert_multitask.ipynb](notebooks/04_phobert_multitask.ipynb) trên Google Colab T4 GPU ~8–10 phút với `src_and_data_v4.zip`), giải nén vào `models/phobert_absa_v4/` và `data/processed/`. Nếu không có weights, NB06 tự động fallback sang `Baseline_TFIDF_LinearSVC` và ghi rõ ở cột `Model_Su_Dung`.
 
 ---
 
@@ -48,3 +53,4 @@ Dự án **True Aspect-Based Sentiment Analysis (`5 × 4`)** trên tập dữ li
 - **Một seed huấn luyện (42):** Paired Bootstrap CI chỉ phản ánh dao động mẫu test, không phản ánh dao động huấn luyện. Chênh lệch +0.086 đủ lớn nên kết luận vẫn vững.
 - **`needs_review`:** ngưỡng theo ngân sách ~15% review; chỉ bắt được một phần lỗi (xem `model_metadata.json` -> `needs_review_test`). Không dùng điều kiện mâu thuẫn sao vì sẽ trùng với khiếu nại ngầm.
 - **SHAP (NB05)** giải thích mô hình surrogate LR/TF-IDF, không phải PhoBERT.
+- **`dev_pred_phobert.csv`:** chứa các dòng `df_dev` đã dùng cho early stopping và calibration, **không dùng để đánh giá**; chỉ báo cáo kết quả trên tập test (`test_pred_phobert.csv`).

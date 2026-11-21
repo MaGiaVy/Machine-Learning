@@ -347,3 +347,8 @@ def classify_silent_complaint_levels(stars, absa_mat) -> tuple[np.ndarray, np.nd
             levels.append('Cao')
     lvl_arr = np.array(levels, dtype=object)
     return neg_cnt, lvl_arr, (lvl_arr == 'Cao')
+
+
+def review_exact_match(y_true, y_pred) -> float:
+    """Tỉ lệ review mà cả 5 khía cạnh đều dự đoán đúng. Đầu vào (N, 5)."""
+    return float((np.asarray(y_true) == np.asarray(y_pred)).all(axis=1).mean())
