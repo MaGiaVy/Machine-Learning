@@ -1,0 +1,49 @@
+{
+  "family": "LinearSVC",
+  "C": 0.5,
+  "test_all": {
+    "absa_micro_f1": 0.7576,
+    "absa_macro_f1": 0.7556,
+    "mean_4cls_macro_f1": 0.6895,
+    "per_aspect_4cls_f1": [
+      0.6427,
+      0.7309,
+      0.7251,
+      0.7421,
+      0.6068
+    ],
+    "polarity_given_detected_macro_f1": 0.7854,
+    "majority_4cls_macro_f1": 0.1693,
+    "all1_presence_macro_f1": 0.6789
+  },
+  "test_conflict": {
+    "absa_micro_f1": 0.6492,
+    "absa_macro_f1": 0.653,
+    "mean_4cls_macro_f1": 0.6116,
+    "per_aspect_4cls_f1": [
+      0.5678,
+      0.6962,
+      0.689,
+      0.6081,
+      0.4968
+    ],
+    "polarity_given_detected_macro_f1": 0.6858,
+    "majority_4cls_macro_f1": 0.1588,
+    "all1_presence_macro_f1": 0.7778
+  },
+  "test_conflict_with_neg": {
+    "absa_micro_f1": 0.6311,
+    "absa_macro_f1": 0.6316,
+    "mean_4cls_macro_f1": 0.6103,
+    "per_aspect_4cls_f1": [
+      0.5416,
+      0.709,
+      0.7301,
+      0.6233,
+      0.4477
+    ],
+    "polarity_given_detected_macro_f1": 0.6824,
+    "majority_4cls_macro_f1": 0.1657,
+    "all1_presence_macro_f1": 0.7653
+  }
+}

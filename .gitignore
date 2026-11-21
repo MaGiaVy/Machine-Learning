@@ -11,8 +11,8 @@
 *.safetensors
 *.onnx
 *.h5
-phobert_ecommerce_outputs*.zip
-src_and_data.zip
+phobert_*outputs*.zip
+src_and_data*.zip
 *.tar.gz
 *.rar
 *.7z
@@ -67,3 +67,8 @@ desktop.ini
 tmp/
 temp/
 uploads/
+
+# Large Colab zips & PyTorch weights (>100MB)
+phobert/
+phobert_absa_eval_v4*.zip
+models/phobert_absa_v4/*.pt

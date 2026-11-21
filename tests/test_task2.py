@@ -44,10 +44,10 @@ class TestTask2BaselinePipeline(unittest.TestCase):
 
         self.assertIn('df_eyeball', nb_text, "Thiếu df_eyeball trong NB03")
         self.assertIn('df_calib', nb_text, "Thiếu df_calib trong NB03")
-        self.assertIn('df_blackbox', nb_text, "Thiếu df_blackbox trong NB03")
+        self.assertIn('df_val', nb_text, "Thiếu df_val trong NB03")
         self.assertTrue('f1_train' in nb_text or 'tr_f1' in nb_text, "Thiếu đánh giá Train F1 để kiểm tra overfitting")
         self.assertIn('f1_eyeball', nb_text, "Thiếu đánh giá Eyeball Dev F1")
-        self.assertIn('f1_blackbox', nb_text, "Thiếu đánh giá Blackbox Dev F1")
+        self.assertTrue('f1_val' in nb_text or 'f1_blackbox' in nb_text, "Thiếu đánh giá Val Dev F1")
         self.assertIn('smooth_w_sent', all_code, "Thiếu smooth_w_sent")
         self.assertIn('smooth_w_asp', all_code, "Thiếu smooth_w_asp")
 
@@ -117,14 +117,20 @@ class TestTask2BaselinePipeline(unittest.TestCase):
         pred_path = os.path.join(self.proc_dir, 'test_pred_baseline.csv')
         self.assertTrue(os.path.exists(pred_path), "File test_pred_baseline.csv không tồn tại")
 
-        df = pd.read_csv(pred_path)
+        df = pd.read_csv(pred_path, keep_default_na=False)
         self.assertEqual(len(df), 2224, "Số dòng tập test phải là 2,224")
 
         asp_true_cols = ['asp_0', 'asp_1', 'asp_2', 'asp_3', 'asp_4']
         asp_pred_cols = ['pred_asp_0', 'pred_asp_1', 'pred_asp_2', 'pred_asp_3', 'pred_asp_4']
-        for col in ['pred_sentiment', 'pred_aspect'] + asp_pred_cols:
+        absa_pred_cols = ['pred_absa_0', 'pred_absa_1', 'pred_absa_2', 'pred_absa_3', 'pred_absa_4']
+        for col in ['pred_sentiment', 'pred_aspect', 'pred_absa_derived_sent', 'So_Khia_Canh_Tieu_Cuc', 'Muc_Do_Khieu_Nai_Ngam', 'Khieu_Nai_Ngam_4_5_Sao'] + asp_pred_cols + absa_pred_cols:
             self.assertIn(col, df.columns, f"Thiếu cột {col} trong test_pred_baseline.csv")
             self.assertFalse(df[col].isna().any(), f"Có giá trị NaN trong {col}")
+        for col in absa_pred_cols:
+            self.assertTrue(set(df[col].unique()).issubset({0, 1, 2, 3}), f"Cột {col} phải thuộc {{0,1,2,3}}")
+        self.assertTrue(set(df['Muc_Do_Khieu_Nai_Ngam'].unique()).issubset({'N/A', 'Không', 'Nhẹ', 'Cao'}))
+        self.assertTrue(os.path.exists(os.path.join(self.models_dir, 'baseline_absa_5x4.pkl')))
+        self.assertTrue(os.path.exists(os.path.join(self.models_dir, 'baseline_absa_metrics.json')))
 
         for col in asp_pred_cols:
             self.assertTrue(set(df[col].unique()).issubset({0, 1}), f"Cột {col} phải là nhị phân 0/1")
@@ -157,7 +163,8 @@ def test_v3_baseline_pipeline_no_blackbox_leak_and_multilabel():
     assert 'StratifiedKFold' in src_txt and 'Pipeline(' in src_txt
     assert 'OneVsRestClassifier' in src_txt
     assert 'PredefinedSplit' not in src_txt, "Must not tune hyperparameters on Blackbox Dev!"
-    assert 'df_eyeball' in src_txt and 'df_calib' in src_txt and 'df_blackbox' in src_txt
+    assert 'df_eyeball' in src_txt and 'df_calib' in src_txt and 'df_val' in src_txt
+    assert 'baseline_absa_5x4.pkl' in src_txt
 
     base_sent = joblib.load(os.path.join(root, 'models', 'baseline_sentiment.pkl'))
     base_asp = joblib.load(os.path.join(root, 'models', 'baseline_aspect_multilabel.pkl'))

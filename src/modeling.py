@@ -9,6 +9,7 @@ from torch.utils.data import Dataset
 from transformers import AutoModel
 
 MAX_LEN = 256
+MAX_LEN_ABSA = 128
 PII_TOKENS = ['[PHONE]', '[ORDER_ID]', '[EMAIL]', '[URL]', '[PERSON]']
 PII_SEED_PHRASES = {
     '[PHONE]': 'số điện_thoại',
@@ -62,11 +63,12 @@ def split_dev_three_way(
 class ViSFDDataset(Dataset):
     """Tokenizes segmented text without padding so dynamic_collate_fn pads per batch."""
 
-    def __init__(self, texts, tokenizer, sents=None, aspects=None, max_len: int = MAX_LEN):
+    def __init__(self, texts, tokenizer, sents=None, aspects=None, absa_targets=None, max_len: int = MAX_LEN):
         self.texts = list(texts)
         self.tokenizer = tokenizer
         self.sents = None if sents is None else list(sents)
         self.aspects = None if aspects is None else np.asarray(aspects, dtype=np.float32)
+        self.absa_targets = None if absa_targets is None else np.asarray(absa_targets, dtype=np.int64)
         self.max_len = max_len
 
     def __len__(self) -> int:
@@ -88,6 +90,8 @@ class ViSFDDataset(Dataset):
             item['sentiment'] = torch.tensor(int(self.sents[idx]), dtype=torch.long)
         if self.aspects is not None:
             item['aspects'] = torch.tensor(self.aspects[idx], dtype=torch.float32)
+        if self.absa_targets is not None:
+            item['absa'] = torch.tensor(self.absa_targets[idx], dtype=torch.long)
         return item
 
 
@@ -109,6 +113,25 @@ class PhoBertMultiTask(nn.Module):
         out = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
         cls_vec = self.drop(out.last_hidden_state[:, 0, :])
         return self.sent_head(cls_vec), self.asp_head(cls_vec)
+
+
+class PhoBertABSA(nn.Module):
+    """Shared PhoBERT encoder with 5x4 True ABSA head (None, Negative, Neutral, Positive)."""
+
+    def __init__(self, model_name_or_dir: str = 'vinai/phobert-base-v2', config=None, dropout: float = 0.2):
+        super().__init__()
+        if config is not None:
+            self.encoder = AutoModel.from_config(config)
+        else:
+            self.encoder = AutoModel.from_pretrained(model_name_or_dir)
+        hidden = self.encoder.config.hidden_size
+        self.drop = nn.Dropout(dropout)
+        self.absa_head = nn.Linear(hidden, 20)
+
+    def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
+        out = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+        cls_vec = self.drop(out.last_hidden_state[:, 0, :])
+        return self.absa_head(cls_vec).view(-1, 5, 4)
 
 
 def init_semantic_pii_embeddings(encoder: nn.Module, tokenizer) -> dict[str, int]:
@@ -138,14 +161,14 @@ def init_semantic_pii_embeddings(encoder: nn.Module, tokenizer) -> dict[str, int
     return tok_ids
 
 
-def dynamic_collate_fn(batch: list[dict], pad_id: int = 1) -> dict[str, torch.Tensor]:
-    """Pad batch sequences dynamically up to MAX_LEN (256) and stack sentiment/aspect targets."""
-    max_len = min(MAX_LEN, max(torch.as_tensor(item['input_ids']).numel() for item in batch))
+def dynamic_collate_fn(batch: list[dict], pad_id: int = 1, max_len: int = MAX_LEN) -> dict[str, torch.Tensor]:
+    """Pad batch sequences dynamically up to max_len and stack available targets."""
+    batch_max = min(max_len, max(torch.as_tensor(item['input_ids']).numel() for item in batch))
     ids_list, mask_list = [], []
     for item in batch:
-        ids = torch.as_tensor(item['input_ids'], dtype=torch.long).reshape(-1)[:max_len]
-        mask = torch.as_tensor(item['attention_mask'], dtype=torch.long).reshape(-1)[:max_len]
-        pad_n = max_len - ids.shape[0]
+        ids = torch.as_tensor(item['input_ids'], dtype=torch.long).reshape(-1)[:batch_max]
+        mask = torch.as_tensor(item['attention_mask'], dtype=torch.long).reshape(-1)[:batch_max]
+        pad_n = batch_max - ids.shape[0]
         if pad_n > 0:
             ids = torch.cat([ids, torch.full((pad_n,), pad_id, dtype=torch.long)])
             mask = torch.cat([mask, torch.zeros(pad_n, dtype=torch.long)])
@@ -160,6 +183,8 @@ def dynamic_collate_fn(batch: list[dict], pad_id: int = 1) -> dict[str, torch.Te
         out['sentiment'] = torch.stack([torch.as_tensor(item['sentiment'], dtype=torch.long) for item in batch])
     if 'aspects' in batch[0]:
         out['aspects'] = torch.stack([torch.as_tensor(item['aspects'], dtype=torch.float32) for item in batch])
+    if 'absa' in batch[0]:
+        out['absa'] = torch.stack([torch.as_tensor(item['absa'], dtype=torch.long) for item in batch])
     return out
 
 
@@ -272,3 +297,94 @@ def multilabel_to_primary_aspect(asp_probs, threshold: float = 0.5) -> np.ndarra
     active = ap >= threshold
     masked = np.where(active, ap, -1.0)
     return np.where(active.any(axis=-1), masked.argmax(axis=-1), ap.argmax(axis=-1))
+
+
+def compute_absa_class_weights(y_train_5x4, power: float = 0.5) -> torch.Tensor:
+    """Compute smoothed inverse-frequency class weights (5, 4) normalized to mean=1 per aspect."""
+    y = np.asarray(y_train_5x4, dtype=np.int64)
+    weights = np.ones((5, 4), dtype=np.float32)
+    n = len(y)
+    for j in range(5):
+        cnt = np.bincount(y[:, j], minlength=4).astype(np.float64)
+        w = (n / np.maximum(4.0 * cnt, 1.0)) ** power
+        w = np.where(cnt > 0, w, 0.0)
+        if w.sum() > 0:
+            w = w / (w[cnt > 0].mean())
+        weights[j] = w.astype(np.float32)
+    return torch.tensor(weights, dtype=torch.float32)
+
+
+class ABSATemperatureScaler:
+    """Post-hoc temperature scaling fitted independently for 5 ABSA heads (T_0..T_4) on df_calib."""
+
+    def __init__(self, temps: list[float] | None = None):
+        self.temps = [1.0] * 5 if temps is None else [float(t) for t in temps]
+
+    def fit(self, absa_logits, y_absa) -> 'ABSATemperatureScaler':
+        z = _to_numpy(absa_logits).astype(np.float64)
+        y = _to_numpy(y_absa).astype(np.int64)
+        idx = np.arange(len(y))
+        fitted = []
+        for j in range(5):
+            zj, yj = z[:, j, :], y[:, j]
+
+            def _nll(t_arr):
+                sc = zj / t_arr[0]
+                sh = sc - sc.max(axis=-1, keepdims=True)
+                lp = sh - np.log(np.exp(sh).sum(axis=-1, keepdims=True))
+                return float(-lp[idx, yj].mean())
+
+            res = minimize(_nll, x0=[1.0], method='L-BFGS-B', bounds=[(0.05, 10.0)])
+            fitted.append(round(float(res.x[0]), 6))
+        self.temps = fitted
+        return self
+
+    def predict_probs(self, absa_logits) -> np.ndarray:
+        z = _to_numpy(absa_logits).astype(np.float64)
+        probs = np.empty_like(z, dtype=np.float64)
+        for j in range(5):
+            probs[:, j, :] = _softmax(z[:, j, :] / self.temps[j])
+        return probs
+
+    def to_dict(self) -> dict:
+        return {'temps': self.temps}
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ABSATemperatureScaler':
+        return cls(temps=data.get('temps', [1.0] * 5))
+
+
+def tune_absa_calib_threshold(absa_probs, y_absa, review_budget: float = 0.15) -> dict[str, float]:
+    """Tune low_conf_threshold on min_j(max_c P(absa_j == c)) using df_calib."""
+    ap = _to_numpy(absa_probs)
+    ya = _to_numpy(y_absa).astype(int)
+    pred = ap.argmax(axis=-1)
+    is_error = (pred != ya).any(axis=-1)
+    min_conf = ap.max(axis=-1).min(axis=-1)
+
+    best_th, best_score, best_prec, best_fpr = 0.55, -1e9, 0.0, 0.0
+    n_ok = max(int((~is_error).sum()), 1)
+    for th in np.round(np.arange(0.35, 0.86, 0.02), 2):
+        flagged = min_conf < th
+        tp = int((flagged & is_error).sum())
+        fp = int((flagged & ~is_error).sum())
+        prec = tp / max(int(flagged.sum()), 1)
+        fpr = fp / n_ok
+        f1_err = f1_score(is_error, flagged, zero_division=0) if is_error.any() else 0.0
+        score = f1_err - (0.5 * (fpr - 0.35) if fpr > 0.35 else 0.0) - 0.1 * fpr
+        if score > best_score:
+            best_th, best_score, best_prec, best_fpr = float(th), float(score), float(prec), float(fpr)
+
+    # Nguong theo ngan sach: gan co dung review_budget (vd 15%) review co min_conf thap nhat tren df_calib
+    rv_th = float(np.quantile(min_conf, review_budget))
+    rv_flag = min_conf < rv_th
+    rv_tp = int((rv_flag & is_error).sum())
+    return {
+        'low_conf_threshold': round(best_th, 4),
+        'calib_review_precision': round(best_prec, 4),
+        'calib_review_fpr': round(best_fpr, 4),
+        'review_budget': review_budget,
+        'review_conf_threshold': round(rv_th, 4),
+        'calib_budget_precision': round(rv_tp / max(int(rv_flag.sum()), 1), 4),
+        'calib_budget_error_recall': round(rv_tp / max(int(is_error.sum()), 1), 4),
+    }

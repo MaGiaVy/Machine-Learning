@@ -1,0 +1,16 @@
+{
+  "temps": [
+    0.766772,
+    0.648832,
+    0.614807,
+    0.778183,
+    0.745168
+  ],
+  "low_conf_threshold": 0.75,
+  "calib_review_precision": 0.6101,
+  "calib_review_fpr": 0.3899,
+  "review_budget": 0.15,
+  "review_conf_threshold": 0.5094,
+  "calib_budget_precision": 0.7333,
+  "calib_budget_error_recall": 0.234
+}

@@ -1,8 +1,14 @@
-# TÀI LIỆU BÀN GIAO XÂY DỰNG ỨNG DỤNG WEB — VoC-INSIGHT (PHIÊN BẢN v2.0)
+# TÀI LIỆU BÀN GIAO XÂY DỰNG ỨNG DỤNG WEB — VoC-INSIGHT (PHIÊN BẢN v4.0 TRUE ABSA 5×4)
 
 **Tên hệ thống:** Hệ thống Phân tích Tiếng nói Khách hàng & Đề xuất Cải thiện Sản phẩm TMĐT (**VoC-Insight**)  
-**Bộ dữ liệu chuẩn:** UIT-ViSFD (Vietnamese Smartphone Feedback Dataset — 11,122 đánh giá: `7,786` Train / `350` Eyeball Dev / `762` Blackbox Dev / `2,224` Test)  
+**Bộ dữ liệu chuẩn:** UIT-ViSFD (Vietnamese Smartphone Feedback Dataset — đánh giá điện thoại tiếng Việt; sau dedup sạch: `7,762` Train / `250` Eyeball / `300` Calib / `560` Val / `2,224` Test)  
 **Kiến trúc ứng dụng mục tiêu:** **FastAPI (Python Backend)** + **SQLite (`voc_insight.db`)** + **React / Next.js (Frontend)**  
+
+> **Tóm tắt nâng cấp v4.0 (True ABSA 5×4):**
+> - **Checkpoint chính:** `models/phobert_absa_v4/phobert_absa_best.pt` + `calibration.json` (`temps` 5 đầu, `low_conf_threshold=0.73`, `MAX_LEN_ABSA=128`). Trên Windows CPU RAM hẹp, nạp zero-copy bằng `with torch.device('meta'): ...` + `torch.load(..., map_location='cpu', mmap=True, weights_only=True)` + `load_state_dict(..., assign=True)`.
+> - **Fallback nhanh:** `models/baseline_absa_5x4.pkl` (`LinearSVC`, `C=0.5`, cùng `tfidf_vectorizer.pkl`; không đặt ngưỡng xác suất `0.5` trên `decision_function`).
+> - **Chỉ số Test (`N=2,224`):** PhoBERT `absa_macro_f1 = 0.8417` vs Baseline `0.7556` (95% Paired Bootstrap CI `[+0.0769, +0.0964]`); `mean_4cls_macro_f1 = 0.7929`; `polarity_given_detected = 0.8370`; `conflict (n=286) = 0.7533`; `conflict_with_neg (n=141) = 0.7337`.
+> - **Cột đầu ra Excel v4 (`NB06`):** `Hieu_Nang_Cau_Hinh`, `Man_Hinh_Camera`, `Pin_Sac`, `Gia_Ca_Hau_Mai`, `Thiet_Ke_Tong_Quan`, `Du_Doan_Cam_Xuc`, `So_Khia_Canh_Tieu_Cuc`, `Muc_Do_Khieu_Nai_Ngam` (`N/A` / `Không` / `Nhẹ` / `Cao`), `Khieu_Nai_Ngam_4_5_Sao` (`Muc_Do == 'Cao'`), `Can_Kiem_Duyet`, `Model_Su_Dung`.
 **Phiên bản:** `2.0` — Đồng bộ 100% với bộ Notebook v2.0 (đã sửa nhãn đa khía cạnh, tách từ `pyvi`, chia Eyeball/Blackbox Dev, bao phủ MECE 100% Actionable Insights và xử lý Excel bẩn toàn diện).
 
 ---
@@ -193,10 +199,11 @@ class PhoBertMultiTask(nn.Module):
 
 **Quy tắc gắn cờ kiểm duyệt `needs_review`:**
 ```python
-star_contra = ((star_rating <= 2) and (pred_sentiment == 2)) or ((star_rating >= 4) and (pred_sentiment == 0))
-low_conf = (sentiment_conf < 0.65) or (aspect_conf < 0.65)
-needs_review = bool(low_conf or star_contra or is_no_content)
+# v4.0: ngưỡng theo ngân sách ~15% (calibration.json -> review_conf_threshold, tune trên df_calib)
+low_conf = min_aspect_conf < review_conf_threshold
+needs_review = bool(low_conf or is_no_content)
 ```
+> Không dùng điều kiện "mâu thuẫn sao": review 4–5★ có khía cạnh bị chê là *khiếu nại ngầm* (mục tiêu của hệ thống), không phải lỗi model, nên đã tách khỏi `needs_review`. Cột Excel `Khia_Canh_Can_Kiem` chỉ ra khía cạnh cụ thể cần đọc lại; `Du_Doan_Cam_Xuc` có thêm giá trị `Hỗn hợp` khi có cả Tiêu cực lẫn Tích cực.
 
 ---
 

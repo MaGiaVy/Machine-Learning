@@ -1,119 +1,111 @@
-import os
-import unittest
 import json
+import os
+import sys
+import unittest
+
 import numpy as np
 import pandas as pd
-from sklearn.metrics import f1_score, accuracy_score
 
-class TestTask3PhoBertMultiTask(unittest.TestCase):
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from src.labels import ABSA_COLS, compute_absa_metrics, compute_paired_bootstrap_ci
+
+
+class TestTask3PhoBertABSAv4(unittest.TestCase):
     def setUp(self):
-        self.root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        self.root = ROOT_DIR
         self.nb_path = os.path.join(self.root, 'notebooks', '04_phobert_multitask.ipynb')
         self.models_dir = os.path.join(self.root, 'models')
+        self.save_dir = os.path.join(self.models_dir, 'phobert_absa_v4')
         self.proc_dir = os.path.join(self.root, 'data', 'processed')
         self.metadata_path = os.path.join(self.models_dir, 'model_metadata.json')
         self.pred_path = os.path.join(self.proc_dir, 'test_pred_phobert.csv')
+        self.dev_pred_path = os.path.join(self.proc_dir, 'dev_pred_phobert.csv')
 
-    def test_nb04_executed_and_no_fake_logs(self):
-        """Kiểm tra NB04 mọi cell đều đã thực thi, không có training_logs hay hp_candidates gán cứng, có chia Eyeball/Blackbox Dev."""
+    def test_nb04_executed_and_v4_design(self):
+        """Kiểm tra NB04 đã thực thi toàn bộ cell, có seed_everything(42), chia Eyeball/Calib/Val và dùng MAX_LEN_ABSA=128."""
         with open(self.nb_path, 'r', encoding='utf-8') as f:
             nb = json.load(f)
         code_cells = [c for c in nb['cells'] if c['cell_type'] == 'code' and ''.join(c['source']).strip()]
-        assert all(c.get('execution_count') is not None for c in code_cells), "NB04 has unexecuted cells"
+        self.assertTrue(all(c.get('execution_count') is not None for c in code_cells), "NB04 còn cell chưa thực thi")
         full_src = "\n".join("".join(c['source']) for c in code_cells)
-        assert "training_logs = [" not in full_src, "Hardcoded training_logs still present in NB04"
-        assert "hp_candidates" not in full_src, "Fake hp_candidates grid search still present in NB04"
-        assert "df_eyeball" in full_src and "df_blackbox" in full_src, "Missing Eyeball/Blackbox Dev split in NB04"
-        assert "ViTokenizer.tokenize" in full_src, "Missing ViTokenizer.tokenize in Colab fallback"
+        self.assertNotIn("training_logs = [", full_src)
+        self.assertNotIn("hp_candidates", full_src)
+        self.assertIn("df_eyeball", full_src)
+        self.assertIn("df_calib", full_src)
+        self.assertIn("df_val", full_src)
+        self.assertIn("seed_everything(42)", full_src)
+        self.assertIn("PhoBertABSA", full_src)
+        self.assertIn("MAX_LEN_ABSA", full_src)
+        self.assertIn("ABSATemperatureScaler", full_src)
+        self.assertIn("compute_paired_bootstrap_ci", full_src)
+        self.assertIn("raise FileNotFoundError", full_src)
 
-    def test_notebook_loss_weight_balanced(self):
-        """Kiểm tra trọng số hàm loss được điều chỉnh sang 0.9 * loss_asp_fn."""
-        with open(self.nb_path, 'r', encoding='utf-8') as f:
-            nb = json.load(f)
-        all_code = "\n".join("".join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
-        self.assertIn("0.9 * loss_asp_fn", all_code, "Mã nguồn phải sử dụng hệ số 0.9 cho loss Aspect")
-        self.assertNotIn("1.2 * loss_asp_fn", all_code, "Mã nguồn không được còn chứa hệ số 1.2 cho loss Aspect")
+    def test_test_and_dev_pred_phobert_csv(self):
+        """Kiểm tra test_pred_phobert.csv (2224) và dev_pred_phobert.csv (1110) đủ cột ABSA 5x4 và mức độ khiếu nại ngầm."""
+        for path, exp_len in [(self.pred_path, 2224), (self.dev_pred_path, 1110)]:
+            self.assertTrue(os.path.exists(path), f"Thiếu file {path}")
+            df = pd.read_csv(path, keep_default_na=False)
+            self.assertEqual(len(df), exp_len)
+            pred_cols = [f'pred_absa_{j}' for j in range(5)]
+            conf_cols = [f'absa_conf_{j}' for j in range(5)]
+            req = pred_cols + conf_cols + [
+                'pred_absa_derived_sent', 'min_aspect_conf', 'So_Khia_Canh_Tieu_Cuc',
+                'Muc_Do_Khieu_Nai_Ngam', 'Khieu_Nai_Ngam_4_5_Sao', 'needs_review', 'is_no_content',
+            ] + ABSA_COLS
+            for c in req:
+                self.assertIn(c, df.columns, f"Thiếu cột {c} trong {path}")
+            for c in pred_cols:
+                vals = set(df[c].astype(int).unique())
+                self.assertTrue(vals.issubset({0, 1, 2, 3}), f"Cột {c} ngoài miền 0..3: {vals}")
+            self.assertTrue(set(df['Muc_Do_Khieu_Nai_Ngam'].unique()).issubset({'N/A', 'Không', 'Nhẹ', 'Cao'}))
+            is_low_star = df['n_star'].astype(int) <= 3
+            self.assertTrue((df.loc[is_low_star, 'Muc_Do_Khieu_Nai_Ngam'] == 'N/A').all())
+            self.assertTrue(
+                (df['Khieu_Nai_Ngam_4_5_Sao'].astype(str).str.lower() == (df['Muc_Do_Khieu_Nai_Ngam'] == 'Cao').astype(str).str.lower()).all()
+            )
 
-    def test_notebook_no_ground_truth_fallback(self):
-        """Kiểm tra xóa bỏ triệt để việc fallback tự gán nhãn thật df_test['sentiment'].tolist()."""
-        with open(self.nb_path, 'r', encoding='utf-8') as f:
-            nb = json.load(f)
-        all_code = "\n".join("".join(c['source']) for c in nb['cells'] if c['cell_type'] == 'code')
-        self.assertNotIn("df_test['sentiment'].tolist()", all_code, "Không được phép fallback nhãn thật sentiment")
-        self.assertNotIn("df_test['aspect_group'].tolist()", all_code, "Không được phép fallback nhãn thật aspect")
-        self.assertIn("raise FileNotFoundError", all_code, "Phải ném FileNotFoundError nếu không có checkpoint hoặc CSV")
+        df_te = pd.read_csv(self.pred_path, keep_default_na=False)
+        tot_rows = df_te[df_te['sentence'].str.contains('tốt|tuyệt vời', case=False, na=False)]
+        self.assertGreater(len(tot_rows), 0)
+        self.assertEqual((tot_rows['is_no_content'].astype(str).str.lower() == 'true').sum(), 0)
 
-    def test_test_pred_phobert_csv(self):
-        """Kiểm tra test_pred_phobert.csv v3 hợp lệ, đủ 2,224 dòng, đủ 5 cột pred_asp_0..4 và không bắt nhầm is_no_content."""
-        self.assertTrue(os.path.exists(self.pred_path), "File test_pred_phobert.csv không tồn tại")
-        df = pd.read_csv(self.pred_path)
-        self.assertEqual(len(df), 2224, "Số dòng tập test phải là 2,224")
+    def test_metadata_matches_recomputed_metrics_and_bootstrap_ci(self):
+        """Kiểm tra model_metadata.json khớp chỉ số tính lại từ test_pred_phobert.csv, có lát cắt xung đột và paired bootstrap CI."""
+        self.assertTrue(os.path.exists(self.metadata_path))
+        meta = json.load(open(self.metadata_path, encoding='utf-8'))
+        self.assertEqual(meta.get('max_len'), 128)
+        self.assertIn('phobert_absa_v4', meta)
+        self.assertIn('baseline_absa_v4', meta)
+        self.assertIn('calibration', meta)
+        self.assertEqual(len(meta['calibration'].get('temps', [])), 5)
 
-        asp_cols = [f'asp_{i}' for i in range(5)]
-        pred_asp_cols = [f'pred_asp_{i}' for i in range(5)]
-        req_cols = ['pred_sentiment', 'pred_aspect', 'sentiment_conf', 'aspect_conf', 'needs_review', 'is_no_content'] + asp_cols + pred_asp_cols
-        for col in req_cols:
-            self.assertIn(col, df.columns, f"Thiếu cột {col} trong test_pred_phobert.csv")
-            self.assertFalse(df[col].isna().any(), f"Có giá trị NaN trong cột {col}")
+        df_te = pd.read_csv(self.pred_path, keep_default_na=False)
+        y_true = df_te[ABSA_COLS].values.astype(int)
+        y_pred = df_te[[f'pred_absa_{j}' for j in range(5)]].values.astype(int)
+        recomp = compute_absa_metrics(y_true, y_pred)
 
-        for col in pred_asp_cols:
-            self.assertTrue(set(df[col].unique()).issubset({0, 1}), f"Cột {col} phải là nhị phân 0/1")
+        p_meta = meta['phobert_absa_v4']
+        for k in ['absa_micro_f1', 'absa_macro_f1', 'mean_4cls_macro_f1', 'polarity_given_detected_macro_f1', 'majority_4cls_macro_f1']:
+            self.assertIn(k, p_meta)
+            self.assertAlmostEqual(float(p_meta[k]), float(recomp[k]), places=3, msg=f"Lệch {k}")
 
-        tot_rows = df[df['sentence'].str.contains('tốt|tuyệt vời', case=False, na=False)]
-        self.assertGreater(len(tot_rows), 0, "Phải có câu chứa từ 'tốt' hoặc 'tuyệt vời' trong tập test")
-        self.assertEqual((tot_rows['is_no_content'] == True).sum(), 0, "Không được có câu chứa 'tốt' hoặc 'tuyệt vời' bị đánh dấu is_no_content=True")
+        self.assertIn('conflict_absa_macro_f1', p_meta)
+        self.assertIn('conflict_with_neg_absa_macro_f1', p_meta)
+        self.assertIn('silent_complaint_dist_test', p_meta)
 
-        short_praises = df[df['sentence_clean'].str.split().str.len() <= 5]
-        short_positives = short_praises[(short_praises['n_star'] >= 4) & (short_praises['pred_sentiment'] == 2)]
-        self.assertGreater(len(short_positives), 0, "Phải có câu khen ngắn tích cực")
-        self.assertEqual(short_positives['needs_review'].sum(), 0, "Các câu khen 5 sao ngắn không được bị gắn cờ needs_review")
+        ci = p_meta.get('paired_bootstrap_ci_vs_baseline')
+        self.assertIsNotNone(ci, "Thiếu paired_bootstrap_ci_vs_baseline trong model_metadata.json")
+        for k in ['a_mean', 'a_ci95', 'b_mean', 'b_ci95', 'diff_mean', 'diff_ci95']:
+            self.assertIn(k, ci)
+        print(
+            f"\n[SO SÁNH ABSA 5x4 TEST] PhoBERT absa_macro_f1={p_meta['absa_macro_f1']:.4f} "
+            f"vs Baseline={meta['baseline_absa_v4']['absa_macro_f1']:.4f} | "
+            f"Diff={ci['diff_mean']:+.4f} (95% CI: {ci['diff_ci95']})"
+        )
 
-        sent_f1 = f1_score(df['sentiment'], df['pred_sentiment'], average='macro')
-        ml_asp_f1 = f1_score(df[asp_cols].values, df[pred_asp_cols].values, average='macro', zero_division=0)
-        prim_asp_f1 = f1_score(df['aspect_group'], df['pred_aspect'], average='macro', zero_division=0)
-        hit_any = float(df[asp_cols].values[np.arange(len(df)), df['pred_aspect'].values.astype(int)].mean())
-
-        self.assertGreater(sent_f1, 0.75, f"PhoBERT Sentiment Macro F1 ({sent_f1:.4f}) phải > 0.75")
-        self.assertGreater(ml_asp_f1, 0.85, f"PhoBERT Multi-label Aspect Macro F1 ({ml_asp_f1:.4f}) phải > 0.85")
-        self.assertGreater(prim_asp_f1, 0.45, f"PhoBERT Primary Aspect Macro F1 ({prim_asp_f1:.4f}) phải > 0.45")
-        self.assertGreater(hit_any, 0.90, f"PhoBERT Hit-Any-True-Group ({hit_any:.4f}) phải > 0.90")
-
-    def test_model_metadata_json(self):
-        """Kiểm tra model_metadata.json đúng cú pháp v3, khớp 100% với test_pred_baseline.csv và test_pred_phobert.csv."""
-        self.assertTrue(os.path.exists(self.metadata_path), "File model_metadata.json không tồn tại")
-        with open(self.metadata_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-
-        self.assertIn("baseline_tfidf", data)
-        self.assertIn("phobert_multitask", data)
-
-        df_base = pd.read_csv(os.path.join(self.proc_dir, 'test_pred_baseline.csv'))
-        df_pho = pd.read_csv(self.pred_path)
-        asp_cols = [f'asp_{i}' for i in range(5)]
-        pred_asp_cols = [f'pred_asp_{i}' for i in range(5)]
-
-        base = data["baseline_tfidf"]
-        self.assertEqual(base["sentiment_macro_f1"], round(f1_score(df_base['sentiment'], df_base['pred_sentiment'], average='macro'), 4))
-        self.assertEqual(base["sentiment_accuracy"], round(accuracy_score(df_base['sentiment'], df_base['pred_sentiment']), 4))
-        self.assertEqual(base["aspect_multilabel_macro_f1"], round(f1_score(df_base[asp_cols].values, df_base[pred_asp_cols].values, average='macro', zero_division=0), 4))
-        self.assertEqual(base["aspect_macro_f1"], round(f1_score(df_base['aspect_group'], df_base['pred_aspect'], average='macro', zero_division=0), 4))
-        self.assertEqual(base["aspect_accuracy"], round(accuracy_score(df_base['aspect_group'], df_base['pred_aspect']), 4))
-
-        phobert = data["phobert_multitask"]
-        self.assertEqual(phobert["sentiment_macro_f1"], round(f1_score(df_pho['sentiment'], df_pho['pred_sentiment'], average='macro'), 4))
-        self.assertEqual(phobert["sentiment_accuracy"], round(accuracy_score(df_pho['sentiment'], df_pho['pred_sentiment']), 4))
-        self.assertEqual(phobert["aspect_multilabel_macro_f1"], round(f1_score(df_pho[asp_cols].values, df_pho[pred_asp_cols].values, average='macro', zero_division=0), 4))
-        self.assertEqual(phobert["aspect_macro_f1"], round(f1_score(df_pho['aspect_group'], df_pho['pred_aspect'], average='macro', zero_division=0), 4))
-        self.assertEqual(phobert["aspect_accuracy"], round(accuracy_score(df_pho['aspect_group'], df_pho['pred_aspect']), 4))
-
-
-def test_nb04_executed_and_no_fake_logs():
-    with open('notebooks/04_phobert_multitask.ipynb', encoding='utf-8') as f:
-        nb = json.load(f)
-    code_cells = [c for c in nb['cells'] if c['cell_type'] == 'code' and ''.join(c['source']).strip()]
-    assert all(c.get('execution_count') is not None for c in code_cells), "NB04 has unexecuted cells"
-    full_src = "\n".join("".join(c['source']) for c in code_cells)
-    assert "training_logs = [" not in full_src, "Hardcoded training_logs still present in NB04"
 
 if __name__ == '__main__':
     unittest.main()

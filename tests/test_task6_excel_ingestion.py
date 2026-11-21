@@ -266,6 +266,36 @@ class TestTask6ExcelIngestion(unittest.TestCase):
             self.assertIn('[PHONE]', masked_full.loc[0, col])
             self.assertIn('[ORDER_ID]', masked_full.loc[0, col])
 
+    def test_nb06_v4_absa_output_and_silent_complaint_levels(self):
+        import json
+        nb6_path = os.path.join(ROOT_DIR, 'notebooks', '06_excel_auto_detector.ipynb')
+        with open(nb6_path, 'r', encoding='utf-8') as f:
+            nb = json.load(f)
+        code_cells = [c for c in nb['cells'] if c['cell_type'] == 'code' and ''.join(c['source']).strip()]
+        self.assertTrue(all(c.get('execution_count') is not None for c in code_cells), "NB06 còn cell chưa thực thi")
+        all_code = "\n".join("".join(c['source']) for c in code_cells)
+        self.assertIn("Warm-up", all_code)
+        self.assertIn("Model_Su_Dung", all_code)
+        self.assertIn("Muc_Do_Khieu_Nai_Ngam", all_code)
+
+        out_excel = os.path.join(ROOT_DIR, 'data', 'processed', 'sample_excel_predicted.xlsx')
+        self.assertTrue(os.path.exists(out_excel))
+        df_pred = pd.read_excel(out_excel, keep_default_na=False)
+        self.assertEqual(len(df_pred), 25)
+        req_cols = [
+            'Hieu_Nang_Cau_Hinh', 'Man_Hinh_Camera', 'Pin_Sac', 'Gia_Ca_Hau_Mai', 'Thiet_Ke_Tong_Quan',
+            'Du_Doan_Cam_Xuc', 'So_Khia_Canh_Tieu_Cuc', 'Muc_Do_Khieu_Nai_Ngam',
+            'Khieu_Nai_Ngam_4_5_Sao', 'Can_Kiem_Duyet', 'Model_Su_Dung',
+        ]
+        for c in req_cols:
+            self.assertIn(c, df_pred.columns, f"Thiếu cột {c} trong sample_excel_predicted.xlsx")
+        self.assertTrue(set(df_pred['Muc_Do_Khieu_Nai_Ngam'].unique()).issubset({'N/A', 'Không', 'Nhẹ', 'Cao'}))
+        low_stars = pd.to_numeric(df_pred['Số sao (1-5)'], errors='coerce') <= 3
+        self.assertTrue((df_pred.loc[low_stars, 'Muc_Do_Khieu_Nai_Ngam'] == 'N/A').all())
+        self.assertTrue(
+            (df_pred['Khieu_Nai_Ngam_4_5_Sao'].astype(bool) == (df_pred['Muc_Do_Khieu_Nai_Ngam'] == 'Cao')).all()
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

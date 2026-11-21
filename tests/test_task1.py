@@ -71,9 +71,9 @@ class TestTask1TextCleaningAndFilter(unittest.TestCase):
         self.assertTrue(check_no_content("   "))
 
     def test_clean_datasets_content_integrity(self):
-        """Kiểm tra train_clean (7776), dev_clean (1110), test_clean (2224) giữ chữ hoa/thường và không OOV."""
+        """Kiểm tra train_clean (7762), dev_clean (1110), test_clean (2224) giữ chữ hoa/thường và không OOV."""
         splits = {
-            'train': (os.path.join(self.proc_dir, 'train_clean.csv'), 7776),
+            'train': (os.path.join(self.proc_dir, 'train_clean.csv'), 7762),
             'dev': (os.path.join(self.proc_dir, 'dev_clean.csv'), 1110),
             'test': (os.path.join(self.proc_dir, 'test_clean.csv'), 2224),
         }
@@ -128,6 +128,7 @@ class TestTask1TextCleaningAndFilter(unittest.TestCase):
             'eda_aspect_dist.png',
             'eda_star_vs_sentiment.png',
             'eda_aspect_sentiment_heatmap.png',
+            'fig_absa_5x4_heatmap.png',
         ]
         for fname in figs:
             fpath = os.path.join(self.fig_dir, fname)
@@ -152,11 +153,16 @@ def test_v3_pure_labels_dedup_and_clean_integrity():
     true_contra = ((te['n_star'] <= 2) & (te['sentiment'] == 2)) | ((te['n_star'] >= 4) & (te['sentiment'] == 0))
     assert true_contra.sum() >= 50, f"Expected >= 50 real star contradictions in Test, got {true_contra.sum()}"
 
-    # Multi-label columns present across splits
+    # Multi-label & v4 True ABSA 5x4 columns present across splits
     for df_split in (tr, de, te):
         for c in ['asp_0', 'asp_1', 'asp_2', 'asp_3', 'asp_4']:
             assert c in df_split.columns and set(df_split[c].unique()).issubset({0, 1})
+        for c in ['absa_0', 'absa_1', 'absa_2', 'absa_3', 'absa_4']:
+            assert c in df_split.columns and set(df_split[c].unique()).issubset({0, 1, 2, 3})
         assert 'all_aspects' in df_split.columns
+        assert 'has_conflict' in df_split.columns and 'conflict_with_neg' in df_split.columns
+        assert 'conflict_groups' in df_split.columns
+    assert os.path.exists(os.path.join(ROOT_DIR, 'data', 'processed', 'train_neardup_dropped.csv'))
 
     # Zero clean-text leakage across Train vs Dev/Test and zero internal duplicates in Train/Dev
     s_tr = set(tr['sentence_clean'].fillna(''))

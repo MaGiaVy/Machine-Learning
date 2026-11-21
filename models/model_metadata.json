@@ -1,29 +1,89 @@
 {
-  "dataset": "UIT-ViSFD E-Commerce (7776 train / 250 eyeball / 300 calib / 560 blackbox / 2224 test)",
+  "version": "v4.0_true_absa_5x4",
+  "dataset": "UIT-ViSFD E-Commerce (7762 train / 250 eyeball / 300 calib / 560 val / 2224 test)",
+  "max_len": 128,
   "calibration": {
-    "temp_sent": 1.248338,
-    "temp_asp": 0.459018,
-    "aspect_threshold": 0.4,
+    "temps": [
+      0.766772,
+      0.648832,
+      0.614807,
+      0.778183,
+      0.745168
+    ],
     "low_conf_threshold": 0.75,
-    "calib_aspect_macro_f1": 0.9099,
-    "calib_review_precision": 0.6962,
-    "calib_review_fpr": 0.1752
+    "calib_review_precision": 0.6101,
+    "calib_review_fpr": 0.3899,
+    "review_budget": 0.15,
+    "review_conf_threshold": 0.5094,
+    "calib_budget_precision": 0.7333,
+    "calib_budget_error_recall": 0.234
   },
-  "phobert_multitask": {
+  "needs_review_test": {
+    "review_budget": 0.15,
+    "review_conf_threshold": 0.5094,
+    "test_flag_rate": 0.1569,
+    "test_error_rate": 0.4433,
+    "test_precision": 0.745,
+    "test_error_recall": 0.2637
+  },
+  "note_seed": "Paired bootstrap CI chi phan anh dao dong mau test (1 seed huan luyen = 42).",
+  "phobert_absa_v4": {
     "backbone": "vinai/phobert-base-v2",
-    "sentiment_macro_f1": 0.7925,
-    "sentiment_accuracy": 0.8377,
-    "aspect_multilabel_macro_f1": 0.9082,
-    "aspect_macro_f1": 0.5007,
-    "aspect_accuracy": 0.5252,
-    "hit_any_true_group": 0.9496
+    "absa_micro_f1": 0.8405,
+    "absa_macro_f1": 0.841,
+    "mean_4cls_macro_f1": 0.7924,
+    "per_aspect_4cls_f1": [
+      0.7592,
+      0.8335,
+      0.8088,
+      0.8235,
+      0.737
+    ],
+    "polarity_given_detected_macro_f1": 0.8358,
+    "majority_4cls_macro_f1": 0.1693,
+    "all1_presence_macro_f1": 0.6789,
+    "conflict_absa_macro_f1": 0.75,
+    "conflict_with_neg_absa_macro_f1": 0.7284,
+    "paired_bootstrap_ci_vs_baseline": {
+      "metric": "absa_macro_f1",
+      "n_boot": 1000,
+      "a_mean": 0.841,
+      "a_ci95": [
+        0.8311,
+        0.8504
+      ],
+      "b_mean": 0.7553,
+      "b_ci95": [
+        0.7442,
+        0.7657
+      ],
+      "diff_mean": 0.0857,
+      "diff_ci95": [
+        0.0757,
+        0.0954
+      ]
+    },
+    "silent_complaint_dist_test": {
+      "Không": 947,
+      "N/A": 827,
+      "Nhẹ": 242,
+      "Cao": 208
+    }
   },
-  "baseline_tfidf": {
-    "sentiment_macro_f1": 0.7345,
-    "sentiment_accuracy": 0.7824,
-    "aspect_multilabel_macro_f1": 0.9058,
-    "aspect_macro_f1": 0.5111,
-    "aspect_accuracy": 0.5445,
-    "hit_any_true_group": 0.9586
+  "baseline_absa_v4": {
+    "absa_micro_f1": 0.7576,
+    "absa_macro_f1": 0.7556,
+    "mean_4cls_macro_f1": 0.6895,
+    "per_aspect_4cls_f1": [
+      0.6427,
+      0.7309,
+      0.7251,
+      0.7421,
+      0.6068
+    ],
+    "polarity_given_detected_macro_f1": 0.7854,
+    "majority_4cls_macro_f1": 0.1693,
+    "all1_presence_macro_f1": 0.6789,
+    "family": "LinearSVC"
   }
 }

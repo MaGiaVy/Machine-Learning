@@ -37,9 +37,12 @@ def test_pure_sentiment_no_star_leakage_and_multilabel():
     assert res3["aspects"] == [1, 1, 0, 1, 0]
     assert res3["aspect_group"] == 0  # 'cấu hình' (PERF_FEAT) occurs before 'giá' and 'màn'
 
-    # {OTHERS} only -> Neutral (1) and DESIGN_GEN (4)
+    # {OTHERS} only -> Neutral (1) and DESIGN_GEN (4), absa=[0,0,0,0,0]
     res4 = parse_visfd_labels("{OTHERS};", "Không có ý kiến")
-    assert res4 == {'sentiment': 1, 'aspect_group': 4, 'aspects': [0, 0, 0, 0, 1], 'all_aspects': [4]}
+    assert res4 == {
+        'sentiment': 1, 'aspect_group': 4, 'aspects': [0, 0, 0, 0, 1], 'all_aspects': [4],
+        'absa': [0, 0, 0, 0, 0], 'has_conflict': False, 'conflict_with_neg': False, 'conflict_groups': []
+    }
 
     # Tie polarity -> Neutral (1), NFD input still matches keywords after NFC normalization
     nfd_comment = unicodedata.normalize('NFD', "Thiết kế đẹp nhưng pin kém")
@@ -178,3 +181,78 @@ def test_clean_text_skip_backward_compatible():
     assert "camera" not in clean_text(sample, skip=frozenset({'cam'}))
     assert "mình" not in clean_text(sample, skip=frozenset({'single_teencode'}))
     assert "Thế Giới Di Động" not in clean_text(sample, skip=frozenset({'multi_teencode'}))
+
+
+def test_absa_v4_labels_metrics_bootstrap_neardup_and_severity():
+    import numpy as np
+    from src.labels import (
+        ABSA_STATES,
+        classify_silent_complaint_levels,
+        compute_absa_metrics,
+        compute_paired_bootstrap_ci,
+        dedup_remove_train_neardup,
+        derive_overall_sentiment,
+    )
+
+    assert ABSA_STATES == ['None', 'Negative', 'Neutral', 'Positive']
+
+    # Mixed aspect polarities across groups + {OTHERS} excluded from absa_4
+    r1 = parse_visfd_labels("{SCREEN#Positive};{BATTERY#Negative};", "Màn hình đẹp nhưng pin tệ")
+    assert r1['absa'] == [0, 3, 1, 0, 0]
+    assert r1['has_conflict'] is False and r1['conflict_with_neg'] is False and r1['conflict_groups'] == []
+
+    r_oth = parse_visfd_labels("{OTHERS};", "Không có ý kiến")
+    assert r_oth['absa'] == [0, 0, 0, 0, 0]
+
+    # Intra-group polarity conflict: CAMERA#Positive + SCREEN#Negative -> SCREEN_CAM(1) resolves to Negative(1)
+    r_conf = parse_visfd_labels("{CAMERA#Positive};{SCREEN#Negative};", "Camera đẹp nhưng màn hình bị sọc")
+    assert r_conf['absa'] == [0, 1, 0, 0, 0]
+    assert r_conf['has_conflict'] is True
+    assert r_conf['conflict_with_neg'] is True
+    assert r_conf['conflict_groups'] == [1]
+
+    # Post-hoc derived sentiment alert rule: Neg > Neu > Pos > None
+    assert list(derive_overall_sentiment([[0, 3, 1, 0, 0], [0, 3, 0, 0, 3], [0, 0, 0, 0, 0]])) == [0, 2, 1]
+
+    # compute_absa_metrics + compute_paired_bootstrap_ci
+    yt = np.array([[0, 3, 1, 0, 0], [1, 0, 0, 3, 0], [0, 0, 2, 0, 3], [0, 0, 0, 0, 0]])
+    m = compute_absa_metrics(yt, yt)
+    assert m['absa_micro_f1'] == 1.0 and m['absa_macro_f1'] == 1.0 and m['polarity_given_detected_macro_f1'] == 1.0
+    ci_same = compute_paired_bootstrap_ci(yt, yt, yt, n_boot=50, seed=42)
+    assert ci_same['diff_mean'] == 0.0 and ci_same['diff_ci95'] == [0.0, 0.0]
+
+    # Near-dup punctuation-flood immunity & keep_ids gate
+    df_tr = pd.DataFrame({
+        'index': [10, 11, 12],
+        'sentence_clean': [
+            'Sản phẩm tốt giá cả hợp lí .........................',
+            'Mình mới mua máy này dùng rất ổn định mượt mà',
+            'Máy đẹp ok',  # < 5 words -> ignored
+        ],
+    })
+    df_ref = pd.DataFrame({'sentence_clean': [
+        'Zo google đứng máy quá tệ .........................',
+        'Mình mới mua máy này dùng rất ổn định mượt mà quá',
+        'Máy đẹp ok',
+    ]})
+    df_audit, df_drop, _ = dedup_remove_train_neardup(df_tr, {'dev': df_ref}, threshold=0.90, min_words=5, apply=False)
+    assert len(df_audit) == 3  # apply=False does not drop
+    assert list(df_drop['train_idx']) == [11]  # punctuation-flood 10 & short 12 NOT matched!
+    df_kept, _, _ = dedup_remove_train_neardup(df_tr, {'dev': df_ref}, threshold=0.90, min_words=5, keep_ids={11}, apply=True)
+    assert len(df_kept) == 3  # keep_ids preserves row 11
+    df_applied, _, _ = dedup_remove_train_neardup(df_tr, {'dev': df_ref}, threshold=0.90, min_words=5, apply=True)
+    assert list(df_applied['index']) == [10, 12]
+
+    # Silent complaint severity levels including N/A for 1-3* & missing star col
+    neg_c, lvls, flag = classify_silent_complaint_levels([1, 5, 5, 4, 5], [
+        [1, 0, 0, 0, 0],  # 1* -> N/A
+        [0, 3, 0, 0, 3],  # 5*, 0 neg -> Không
+        [0, 3, 1, 0, 0],  # 5*, 1 neg + 1 pos -> Nhẹ
+        [1, 0, 1, 0, 0],  # 4*, 2 neg -> Cao
+        [0, 0, 1, 0, 0],  # 5*, 1 neg + 0 pos -> Cao
+    ])
+    assert list(neg_c) == [1, 0, 1, 2, 1]
+    assert list(lvls) == ['N/A', 'Không', 'Nhẹ', 'Cao', 'Cao']
+    assert list(flag) == [False, False, False, True, True]
+    _, lvls_no_star, flag_no_star = classify_silent_complaint_levels(None, [[1, 0, 0, 0, 0]])
+    assert list(lvls_no_star) == ['N/A'] and list(flag_no_star) == [False]
